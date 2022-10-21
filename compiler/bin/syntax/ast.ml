@@ -1,0 +1,1 @@
+(* Syntaxe abstraite pour petitC *)
