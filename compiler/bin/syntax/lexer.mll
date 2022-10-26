@@ -54,6 +54,14 @@ let digit = [ '0'-'9']
 (* identifiers *)
 let ident = ([alpha '_'])([alpha digit '_'])*
 
+(* chars *)
+let character = [' '-'&'  '('-'['  ']'-'~'  '\\'  '\''  '\n'  '\t'  '\r'] (* without ' and \ *)
+
+(* integers *)
+let integer = '0' | (['1'-'9']digit*) | ('\''characters '\'')
+
+(* preprocessing *)
+let include = "#include"space+'<'(character # '>')*">\n"
 
 (* identifies tokens *)
 rule token = parse
@@ -68,14 +76,17 @@ rule token = parse
     
     (* manages operations *)
     | "="    { ASSIGN }
+    | "&"    { AMP }
+    (* logical operations *)
     | "||"   { OR }
     | "&&"   { AND }
     | "=="   { EQUAL }
-    | "=!"   { NOT_EQUAL }
+    | "!="   { NOT_EQUAL }
     | "<"    { LESS_THAN }
     | "<="   { LESS_EQUAL }
     | ">"    { GREATER_THAN }
     | ">="   { GREATER_EQUAL }
+    (* arithmetical operations *)
     | "+"    { PLUS }
     | "-"    { MINUS }
     | "*"    { TIMES }
@@ -83,22 +94,25 @@ rule token = parse
     | "%"    { MOD }
     | "++"   { INCR }
     | "--"   { DECR }
-
     (* manages syntax tokens *)
     | "{"    { BEG }
     | "}"    { END }
     | "("    { LPAR }
     | ")"    { RPAR }
+    | "["    { LBRA }
+    | "]"    { RBRA }
     | ","    { COMMA }
     | ";"    { SEMI_COLON }
-    
-    | ident as id { manage_kw id }
+
+    (* manages includes *)
+    (* | include as s { TODO } *)
+    | ident as id  { manage_kw id }
     | integer as s { CST (int_of_string s) }
-    | eof    { EOF }
+    | eof          { EOF }
 
 
 (* deals with comments *)
-and comments = parse
+and comment = parse
     | "*/" {token lexbuf}
     | _    {comment lexbuf}
     | eof  {failwith "Unfinished comment"}
