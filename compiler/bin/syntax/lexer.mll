@@ -1,13 +1,13 @@
-(* Analyseur lexical pour petitC *)
+(* Lexer for petitC *)
 
 {
     open Lexing
     open Parser
 
-    (* exception à lever pour signaler une erreur lexicale *)
+    (* exception for lexing errors *)
     exception Lexing_error of string
 
-    (* note : penser à appeler la fonction Lexing.new_line
+    (* note Prof : penser à appeler la fonction Lexing.new_line
         à chaque retour chariot (caractère '\n') *)
 
     (* table mapping keywords to tokens *)
