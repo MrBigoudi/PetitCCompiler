@@ -32,7 +32,7 @@
 %left LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
 %left MINUS PLUS
 %left TIMES DIV MOD
-%right AMP INCR DECR ustar uplus uminus 
+%right NOT AMP INCR DECR ustar uplus uminus 
 %nonassoc IF
 %nonassoc ELSE
 

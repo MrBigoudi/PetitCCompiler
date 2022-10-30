@@ -78,6 +78,7 @@ rule token = parse
     | "="    { ASSIGN }
     | "&"    { AMP }
     (* logical operations *)
+    | "!"    { NOT }
     | "||"   { OR }
     | "&&"   { AND }
     | "=="   { EQUAL }
