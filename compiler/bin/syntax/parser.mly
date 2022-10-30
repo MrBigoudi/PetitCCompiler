@@ -6,6 +6,7 @@
 
 %}
 
+%token INCLUDE
 /* types */
 %token BOOL INT VOID 
 /* values */
@@ -24,9 +25,14 @@
 
 /* Les priorités et associativités des tokens */
 
+%right ASSIGN
+%left OR
+%left AND
+%left EQUAL NOT_EQUAL
+%left LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
 %left MINUS PLUS
-%left TIMES DIV
-%nonassoc uminus
+%left TIMES DIV MOD
+%right AMP INCR DECR ustar uplus uminus 
 %nonassoc IF
 %nonassoc ELSE
 
@@ -68,8 +74,9 @@ stmt:
 ;
 
 expr:
-| c = CST                        { Econst c }
-| id = IDENT                     { Evar id }
+| c = CST
+| id = IDENT
+| 
 | e1 = expr o = op e2 = expr     { Ebinop (o, e1, e2) }
 | MINUS e = expr %prec uminus    { neg e }
 | LPAREN e = expr RPAREN         { e }
