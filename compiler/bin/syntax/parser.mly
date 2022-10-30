@@ -17,6 +17,7 @@
 /* operators (times : ptr assignation ?) */
 %token ASSIGN AMP PLUS MINUS TIMES DIV MOD INCR DECRR
 %token OR AND EQUAL NOT_EQUAL LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
+%token SIZEOF
 /* intstruction */
 %token IF ELSE WHILE FOR RETURN BREAK CONTINUE
 %token EOF
