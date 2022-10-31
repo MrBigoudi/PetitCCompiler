@@ -47,23 +47,24 @@
 prog:
   incl = includ*
   main = decl_fct*
-  EOF
+  EOF {}
 ;
 
 decl_fct:
-  ty = type 
+  ty = typ 
   id = IDENT
   LPAR p = param* RPAR
-  bloc
+  bloc {}
 ;
 
-type: 
-  /* TODO */
-;
+typ: 
+  /* TODO */ {}
+; 
 
 param:
-  ty = type
+  ty = typ
   id = IDENT 
+  {}
 ;
 
 
@@ -82,39 +83,38 @@ stmt:
 ;
 
 expr:
-| c = CST
-| id = IDENT
-| TIMES e = expr %prec ustar 
-| e1 = expr LBRA e2 = expr RBRA
-| e1 = expr ASSIGN e2 = expr 
-| id = IDENT LPAR el = separated_list(COMMA, expr) RPAR
-/* might be shorter with using a group */
-| INCR e = expr 
-| DECR e = expr 
-| e INCR = expr 
-| e DECR = expr 
-| AMP e = expr 
-| NOT e = expr 
-| PLUS e = expr %prec uplus
-| MINUS e = expr %prec uminus
-| e1 = expr o = bin_op e2 = expr
-| SIZEOF LPAREN e = expr RPAREN
-| LPAREN e = expr RPAREN
+| c = CST {}
+| id = IDENT {}
+| TIMES e = expr %prec ustar  {}
+| e1 = expr LBRA e2 = expr RBRA {}
+| e1 = expr ASSIGN e2 = expr  {}
+| id = IDENT LPAR el = separated_list(COMMA, expr) RPAR {}
+/* might be shorter with using a group */ 
+| INCR e = expr {}
+| DECR e = expr {}
+| e = expr INCR {}
+| e  = expr DECR {}
+| AMP e = expr  {}
+| NOT e = expr  {}
+| PLUS e = expr %prec uplus {}
+| MINUS e = expr %prec uminus {}
+| e1 = expr o = bin_op e2 = expr {}
+| SIZEOF LPAREN e = expr RPAREN {}
+| LPAREN e = expr RPAREN {}
 ;
 
 %inline bin_op:
-| EQUAL
-| NOT_EQUAL
-| LESS_THAN
-| LESS_EQUAL
-| GREATER_THAN
-| GREATER_EQUAL 
-| PLUS
-| MINUS
-| TIMES
-| DIV
-| MOD
-| AND
-| OR
+| EQUAL {}
+| NOT_EQUAL {}
+| LESS_THAN {}
+| LESS_EQUAL {}
+| GREATER_THAN {}
+| GREATER_EQUAL  {}
+| PLUS {}
+| MINUS {}
+| TIMES {}
+| DIV {}
+| MOD {}
+| AND {}
+| OR {}
 ;
-
