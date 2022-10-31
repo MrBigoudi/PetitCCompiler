@@ -2,7 +2,6 @@
 
 open Format
 open Lexing
-open Lexer
 open Parser
 
 (* print one token *)
@@ -23,6 +22,10 @@ let rec print_tokens e fmt =
 ;;
 
 (* tests *)
-let e = "2 + 8*5";;
+let lb = from_channel stdin
+let t = ref EOF                  (* le prochain lexème à examiner *)
+let next () = t := token lb
+let () = next ()
 
+let e = "2 + 8*5";;
 let () = printf "e = @[%a@]@." print_tokens e;;
