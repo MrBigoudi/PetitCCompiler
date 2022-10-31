@@ -56,7 +56,7 @@ and instr =
   | Iif of expr * instr * instr
   | Iwhile of expr * instr
   | Ifor of decl_var * expr * expr list * instr
-(*| Iblock of block*)
+  | Iblock of block
   | Iret of expr
   | Ibrk
   | Icontinue
