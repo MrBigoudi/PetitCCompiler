@@ -3,6 +3,7 @@
 open Format
 open Lexing
 open Lexer
+open Parser
 
 (* print one token *)
 let print_token fmt = function
@@ -11,11 +12,7 @@ let print_token fmt = function
   | PLUS   -> fprintf fmt "+"
   | TIMES  -> fprintf fmt "*"
 ;;
-
-let lb = Lexing.from_string
-let t = ref EOF                  (* le prochain lexème à examiner *)
-let next () = t := token lb
-let () = next ()    
+  
 
 (* print all the tokens from a given string *)
 let rec print_tokens e fmt = 

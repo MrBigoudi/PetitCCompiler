@@ -2,59 +2,13 @@
 
 {
     open Lexing
-    (* open Parser  *)
+    open Parser
 
     (* exception for lexing errors *)
     exception Lexing_error of string
 
     (* note Prof : penser à appeler la fonction Lexing.new_line
         à chaque retour chariot (caractère '\n') *)
-
-    type token = 
-        | BOOL
-        | BREAK
-        | CONTINUE
-        | ELSE
-        | FALSE
-        | FOR
-        | IF
-        | INT
-        | NULL
-        | RETURN
-        | SIZEOF
-        | TRUE
-        | VOID
-        | WHILE
-        | ASSIGN
-        | AMP
-        | NOT
-        | OR
-        | AND
-        | EQUAL
-        | NOT_EQUAL
-        | LESS_THAN
-        | LESS_EQUAL
-        | GREATER_THAN
-        | GREATER_EQUAL
-        | PLUS
-        | MINUS
-        | TIMES
-        | DIV
-        | MOD
-        | INCR
-        | DECR
-        | BEG
-        | END
-        | LPAR
-        | RPAR
-        | LBRA
-        | RBRA
-        | COMMA
-        | SEMI_COLON
-        | CST of int
-        | EOF
-        | IDENT of string
-
 
     (* table mapping keywords to tokens *)
     let kwd_table =
