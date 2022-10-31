@@ -92,6 +92,17 @@ expr:
 | LPAR e = expr RPAR { e }
 ;
 
+instr:
+| SEMI_COLON { Iempt }
+| e = expr SEMI_COLON { Iexpr }
+| IF LPAR e = expr RPAR ist = instr { Iif(e, ist, Iempt) }
+| IF LPAR e = expr RPAR ist1 = instr ELSE ist2 = instr { Iif(e, ist1, ist2) }
+| WHILE LPAR e = expr RPAR ist = instr { Iwhile(e, ist) }
+| FOR LPAR dv = decl_var? SEMI_COLON e1 = expr? SEMI_COLON el = separated_list(COMMA, expr) RPAR ist = instr { Ifor(dl, e1, el, ist) }
+| RETURN e = expr? SEMI_COLON { Iret e }
+| BREAK SEMI_COLON { Ibrk }
+| CONTINUE SEMI_COLON { Icontinue }
+
 %inline bin_op:
 | EQUAL { Beq }
 | NOT_EQUAL { Bneq }
