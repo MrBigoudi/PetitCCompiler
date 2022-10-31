@@ -10,6 +10,7 @@ let print_token fmt = function
   | CST n  -> fprintf fmt "%d" n
   | PLUS   -> fprintf fmt "+"
   | TIMES  -> fprintf fmt "*"
+  | _ -> fprintf fmt ""
 ;;
   
 

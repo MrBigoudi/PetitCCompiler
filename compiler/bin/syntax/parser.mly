@@ -45,7 +45,7 @@
 %%
 
 file:
-incl = includ*
+includ*
 fctl = decl_fct*
 EOF { CFinclude fctl }
 ;
@@ -73,33 +73,33 @@ includ:
 ;
 
 expr:
-| c = CST { Ecst c }
+| c = CST { Econst c }
 | id = IDENT { Eident id }
-| TIMES e = expr %prec ustar  { (* On sait pas lol *) }
-| e1 = expr LBRA e2 = expr RBRA { (*Pointeur encore...*)  }
+| TIMES e = expr %prec ustar  { e (* On sait pas lol *) }
+| e1 = expr LBRA (*e2 = *)expr RBRA { e1 (*Pointeur encore...*)  }
 | e1 = expr ASSIGN e2 = expr  { Eassign(e1, e2) }
 | id = IDENT LPAR el = separated_list(COMMA, expr) RPAR { Ecall(id, el) }
 /* might be shorter with using a group */ 
-| INCR e = expr { Ebinop(Badd, 1, e) }
-| DECR e = expr { Ebinop(Bsub, 1, e) }
-| e = expr INCR { Ebinop(Badd, 1, e) }
-| e = expr DECR { Ebinop(Bsub, 1, e) }
-| AMP e = expr  { (* Ptr encore *) }
+| INCR e = expr { Ebinop(Badd, (Econst 1), e) }
+| DECR e = expr { Ebinop(Bsub, (Econst 1), e) }
+| e = expr INCR { Ebinop(Badd, (Econst 1), e) }
+| e = expr DECR { Ebinop(Bsub, (Econst 1), e) }
+| AMP e = expr  { e (* Ptr encore *) }
 | NOT e = expr  { Eunop(Unot, e) }
-| PLUS e = expr %prec uplus { Ebinop(Badd, 0, e) }
-| MINUS e = expr %prec uminus { Ebinop(Bsub, 0, e) }
-| e1 = expr o = bin_op e2 = expr { Ebinnop(op, e1, e2) }
-| SIZEOF LPAR e = expr RPAR { (* Sizeof pas encore géré *) }
+| PLUS e = expr %prec uplus { Ebinop(Badd, (Econst 0), e) }
+| MINUS e = expr %prec uminus { Ebinop(Bsub, (Econst 0), e) }
+| e1 = expr op = bin_op e2 = expr { Ebinop(op, e1, e2) }
+| SIZEOF LPAR e = expr RPAR { e (* Sizeof pas encore géré *) }
 | LPAR e = expr RPAR { e }
 ;
 
 instr:
 | SEMI_COLON { Iempt }
-| e = expr SEMI_COLON { Iexpr }
+| e = expr SEMI_COLON { Iexpr e }
 | IF LPAR e = expr RPAR ist = instr { Iif(e, ist, Iempt) }
 | IF LPAR e = expr RPAR ist1 = instr ELSE ist2 = instr { Iif(e, ist1, ist2) }
 | WHILE LPAR e = expr RPAR ist = instr { Iwhile(e, ist) }
-| FOR LPAR dv = decl_var? SEMI_COLON e1 = expr? SEMI_COLON el = separated_list(COMMA, expr) RPAR ist = instr { Ifor(dl, e1, el, ist) }
+| FOR LPAR dv = decl_var? SEMI_COLON e1 = expr? SEMI_COLON el = separated_list(COMMA, expr) RPAR ist = instr { Ifor(dv, e1, el, ist) }
 | bl = block { Iblock bl }
 | RETURN e = expr? SEMI_COLON { Iret e }
 | BREAK SEMI_COLON { Ibrk }
@@ -107,7 +107,7 @@ instr:
 ;
 
 block:
-| BEG di = decl_instr* END {  }
+| BEG di = decl_instr* END { Blck di }
 ;
 
 decl_instr:

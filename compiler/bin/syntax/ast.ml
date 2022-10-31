@@ -21,10 +21,10 @@ and param =
   | PIdnt of ctype * ident
 
 
-and constant =
+(* and constant =
   | Cint of int
   | Cbool of bool
-  | Cnull
+  | Cnull *)
 
 
 and unop =
@@ -34,7 +34,7 @@ and unop =
 
 
 and expr =
-  | Econst of constant
+  | Econst of int (*constant*)
   | Eident of ident
   (* | Eptr of *)
   | Eassign of expr * expr
@@ -55,9 +55,9 @@ and instr =
   | Iexpr of expr
   | Iif of expr * instr * instr
   | Iwhile of expr * instr
-  | Ifor of decl_var * expr * expr list * instr
+  | Ifor of decl_var option * expr option * expr list * instr
   | Iblock of block
-  | Iret of expr
+  | Iret of expr option
   | Ibrk
   | Icontinue
 
@@ -74,4 +74,4 @@ and block =
 
 
 and decl_var =
-  | DVar of ctype * ident * expr
+  | DVar of ctype * ident * expr option
