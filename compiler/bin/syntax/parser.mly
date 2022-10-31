@@ -16,8 +16,8 @@
 /* manages syntax */
 %token BEG END LPAR RPAR LBRA RBRA COMMA SEMI_COLON
 /* operators (times : ptr assignation ?) */
-%token ASSIGN AMP PLUS MINUS TIMES DIV MOD INCR DECRR
-%token OR AND EQUAL NOT_EQUAL LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
+%token ASSIGN AMP PLUS MINUS TIMES DIV MOD INCR DECR
+%token OR AND NOT EQUAL NOT_EQUAL LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
 %token SIZEOF
 /* intstruction */
 %token IF ELSE WHILE FOR RETURN BREAK CONTINUE
@@ -54,7 +54,7 @@ decl_fct:
   ty = typ 
   id = IDENT
   LPAR p = param* RPAR
-  bloc {}
+  /*bloc*/ {}
 ;
 
 typ: 
@@ -67,19 +67,8 @@ param:
   {}
 ;
 
-
-
-stmt:
-| id = IDENT LPAREN actuals = separated_list(COMMA, expr) RPAREN
-    { Scall (id, actuals) }
-| IF e = expr s = stmt
-    { Sif (e, s, Sblock []) }
-| IF e = expr s1 = stmt ELSE s2 = stmt
-    { Sif (e, s1, s2) }
-| REPEAT e = expr b = stmt
-    { Srepeat (e, b) }
-| BEGIN is = stmt* END
-    { Sblock is }
+includ:
+  INCLUDE {}
 ;
 
 expr:
@@ -99,8 +88,8 @@ expr:
 | PLUS e = expr %prec uplus {}
 | MINUS e = expr %prec uminus {}
 | e1 = expr o = bin_op e2 = expr {}
-| SIZEOF LPAREN e = expr RPAREN {}
-| LPAREN e = expr RPAREN {}
+| SIZEOF LPAR e = expr RPAR {}
+| LPAR e = expr RPAR {}
 ;
 
 %inline bin_op:
