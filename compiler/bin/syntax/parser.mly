@@ -72,38 +72,38 @@ includ:
 ;
 
 expr:
-| c = CST {}
-| id = IDENT {}
-| TIMES e = expr %prec ustar  {}
-| e1 = expr LBRA e2 = expr RBRA {}
-| e1 = expr ASSIGN e2 = expr  {}
-| id = IDENT LPAR el = separated_list(COMMA, expr) RPAR {}
+| c = CST { Ecst c }
+| id = IDENT { Eident id }
+| TIMES e = expr %prec ustar  { (* On sait pas lol *) }
+| e1 = expr LBRA e2 = expr RBRA { (*Pointeur encore...*)  }
+| e1 = expr ASSIGN e2 = expr  { Eassign(e1, e2) }
+| id = IDENT LPAR el = separated_list(COMMA, expr) RPAR { Ecall(id, el) }
 /* might be shorter with using a group */ 
-| INCR e = expr {}
-| DECR e = expr {}
-| e = expr INCR {}
-| e  = expr DECR {}
-| AMP e = expr  {}
-| NOT e = expr  {}
-| PLUS e = expr %prec uplus {}
-| MINUS e = expr %prec uminus {}
-| e1 = expr o = bin_op e2 = expr {}
-| SIZEOF LPAR e = expr RPAR {}
-| LPAR e = expr RPAR {}
+| INCR e = expr { Ebinop(Badd, 1, e) }
+| DECR e = expr { Ebinop(Bsub, 1, e) }
+| e = expr INCR { Ebinop(Badd, 1, e) }
+| e = expr DECR { Ebinop(Bsub, 1, e) }
+| AMP e = expr  { (* Ptr encore *) }
+| NOT e = expr  { Eunop(Unot, e) }
+| PLUS e = expr %prec uplus { Ebinop(Badd, 0, e) }
+| MINUS e = expr %prec uminus { Ebinop(Bsub, 0, e) }
+| e1 = expr o = bin_op e2 = expr { Ebinnop(op, e1, e2) }
+| SIZEOF LPAR e = expr RPAR { (* Sizeof pas encore géré *) }
+| LPAR e = expr RPAR { e }
 ;
 
 %inline bin_op:
-| EQUAL {}
-| NOT_EQUAL {}
-| LESS_THAN {}
-| LESS_EQUAL {}
-| GREATER_THAN {}
-| GREATER_EQUAL  {}
-| PLUS {}
-| MINUS {}
-| TIMES {}
-| DIV {}
-| MOD {}
-| AND {}
-| OR {}
+| EQUAL { Beq }
+| NOT_EQUAL { Bneq }
+| LESS_THAN { Blt }
+| LESS_EQUAL { Ble }
+| GREATER_THAN { Bgt }
+| GREATER_EQUAL  { Bge }
+| PLUS { Badd }
+| MINUS { Bsub }
+| TIMES { Bmul }
+| DIV { Bdiv }
+| MOD { Bmod }
+| AND { Band }
+| OR { Bor }
 ;

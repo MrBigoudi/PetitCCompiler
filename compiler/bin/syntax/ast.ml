@@ -30,15 +30,17 @@ and constant =
 and unop =
   | Uamp   (* & *)
   | Ustar  (* * *)
+  | Unot   (* ! *)
 
 
 and expr =
   | Econst of constant
   | Eident of ident
   (* | Eptr of *)
-  | Eassign of ident * expr
+  | Eassign of expr * expr
   | Ecall of ident * expr list
   | Ebinop of binop * expr * expr
+  | Eunop of unop * expr 
   (* | Esize of  *)
 
 
@@ -46,7 +48,6 @@ and binop =
   | Badd | Bsub | Bmul | Bdiv | Bmod    (* + - * / % *)
   | Beq | Bneq | Blt | Ble | Bgt | Bge  (* == != < <= > >= *)
   | Band | Bor                          (* && || *)
-  | Bnot                                (* ! *)
 
 
 and instr =
