@@ -2,7 +2,7 @@
 
 {
     open Lexing
-    open Parser
+    (* open Parser  *)
 
     (* exception for lexing errors *)
     exception Lexing_error of string
@@ -10,23 +10,69 @@
     (* note Prof : penser à appeler la fonction Lexing.new_line
         à chaque retour chariot (caractère '\n') *)
 
+    type token = 
+        | BOOL
+        | BREAK
+        | CONTINUE
+        | ELSE
+        | FALSE
+        | FOR
+        | IF
+        | INT
+        | NULL
+        | RETURN
+        | SIZEOF
+        | TRUE
+        | VOID
+        | WHILE
+        | ASSIGN
+        | AMP
+        | NOT
+        | OR
+        | AND
+        | EQUAL
+        | NOT_EQUAL
+        | LESS_THAN
+        | LESS_EQUAL
+        | GREATER_THAN
+        | GREATER_EQUAL
+        | PLUS
+        | MINUS
+        | TIMES
+        | DIV
+        | MOD
+        | INCR
+        | DECR
+        | BEG
+        | END
+        | LPAR
+        | RPAR
+        | LBRA
+        | RBRA
+        | COMMA
+        | SEMI_COLON
+        | CST of int
+        | EOF
+        | IDENT of string
+
+
     (* table mapping keywords to tokens *)
     let kwd_table =
     [
-        "bool"     = BOOL
-        "break"    = BREAK
-        "continue" = CONTINUE
-        "else"     = ELSE
-        "false"    = FALSE
-        "for"      = FOR
-        "if"       = IF
-        "int"      = INT
-        "NULL"     = NULL
-        "return"   = RETURN
-        "sizeof"   = SIZEOF
-        "true"     = TRUE
-        "void"     = VOID
-        "while"    = WHILE
+        "bool", BOOL;
+        "break", BREAK;
+        "continue", CONTINUE;
+        "else", ELSE;
+        "false", FALSE;
+        "for", FOR;
+        "if", IF;
+        "int", INT;
+        "NULL", NULL;
+        "return", RETURN;
+        "sizeof", SIZEOF;
+        "true", TRUE;
+        "void", VOID;
+        "while", WHILE;
     ]
 
     (* initiate the hash table + getter *)
@@ -52,13 +98,13 @@ let alpha = ['a'-'A' 'z'-'Z']
 let digit = [ '0'-'9']
 
 (* identifiers *)
-let ident = ([alpha '_'])([alpha digit '_'])*
+let ident = (alpha | '_')(alpha | digit | '_')*
 
 (* chars *)
 let character = [' '-'&'  '('-'['  ']'-'~'  '\\'  '\''  '\n'  '\t'  '\r'] (* without ' and \ *)
 
 (* integers *)
-let integer = '0' | (['1'-'9']digit*) | ('\''characters '\'')
+let integer = '0' | (['1'-'9']digit*) | ('\''(character)'\'')
 
 (* preprocessing *)
 let include = "#include"space+'<'(character # '>')*">\n"
@@ -78,6 +124,7 @@ rule token = parse
     | "="    { ASSIGN }
     | "&"    { AMP }
     (* logical operations *)
+    | "!"    { NOT }
     | "||"   { OR }
     | "&&"   { AND }
     | "=="   { EQUAL }
