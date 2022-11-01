@@ -4,7 +4,7 @@ TEST_FOLDER := test
 
 # TARGETS
 TARGET := main.exe
-TEST   := compilerTests.exe
+TEST   := prettyPrinterTests.exe
 
 
 all: $(TARGET)

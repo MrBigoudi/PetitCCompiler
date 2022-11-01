@@ -106,7 +106,7 @@ rule token = parse
     | ";"    { SEMI_COLON }
 
     (* manages includes *)
-    (* | include as s { TODO } *)
+    | include { INCLUDE }
     | ident as id  { manage_kw id }
     | integer as s { CST (int_of_string s) }
     | eof          { EOF }
