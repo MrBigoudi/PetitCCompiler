@@ -73,6 +73,9 @@ includ:
 ;
 
 expr:
+| d = desc { { desc = d ; loc = $startpos, $endpos } }
+
+desc:
 | c = CST { Econst c }
 | id = IDENT { Eident id }
 | TIMES e = expr %prec ustar  { e (* On sait pas lol *) }

@@ -34,6 +34,10 @@ and unop =
 
 
 and expr =
+  { desc: desc ;
+    loc : Lexing.position * Lexing.position }
+
+and desc =
   | Econst of int (*constant*)
   | Eident of ident
   (* | Eptr of *)
