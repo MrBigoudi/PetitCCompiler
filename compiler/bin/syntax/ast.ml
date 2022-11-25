@@ -21,10 +21,9 @@ and param =
   | PIdnt of ctype * ident
 
 
-(* and constant =
+and const =
   | Cint of int
-  | Cbool of bool
-  | Cnull *)
+  | Cnull
 
 
 and unop =
@@ -38,7 +37,7 @@ and expr =
     loc : Lexing.position * Lexing.position }
 
 and desc =
-  | Econst of int (*constant*)
+  | Econst of const (*constant*)
   | Eident of ident
   (* | Eptr of *)
   | Eassign of expr * expr
