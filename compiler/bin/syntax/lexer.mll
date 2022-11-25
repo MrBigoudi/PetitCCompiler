@@ -66,7 +66,7 @@ let include = "#include"space+'<'(character # '>')*">\n"
 (* identifies tokens *)
 rule token = parse
     (* manage comments *)
-    | "//" [^ '\n']* '\n'
+    | "//" [^ '\n']* { new_line lexbuf; token lexbuf }
     | "//" [^ '\n']* eof
     | "/*"   { comment lexbuf }
     
@@ -115,5 +115,6 @@ rule token = parse
 (* deals with comments *)
 and comment = parse
     | "*/" {token lexbuf}
+    | '\n' { new_line lexbuf; comment lexbuf }
     | _    {comment lexbuf}
     | eof  {failwith "Unfinished comment"}
