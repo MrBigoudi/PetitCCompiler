@@ -8,7 +8,7 @@ type const =
 
 type unop = Unot
 
-type binop = Badd | Bsub
+type binop = Badd | Bsub | Bmul | Bdiv | Bmod
 
 (*type expression = {
   desc: desc;

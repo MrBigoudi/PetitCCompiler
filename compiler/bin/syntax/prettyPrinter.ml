@@ -18,6 +18,9 @@ and print_const const fmt = match const with
 and print_binop op fmt e1 e2 = match op with
   | Badd -> fprintf fmt "(@[%a +@ %a@])" print e1 print e2
   | Bsub -> fprintf fmt "(@[%a -@ %a@])" print e1 print e2
+  | Bmul -> fprintf fmt "(@[%a *@ %a@])" print e1 print e2
+  | Bdiv -> fprintf fmt "(@[%a /@ %a@])" print e1 print e2
+  | Bmod -> fprintf fmt "(@[%a %%@ %a@])" print e1 print e2
   (*| Bmul -> fprintf fmt "(@[%a *@ %a@])" print e1 print e2*)
 
 and print_unop op fmt e = match op with
@@ -28,6 +31,8 @@ let b = Econst(True)
 let c = Econst(Null)
 let d = Eunop(Unot, a)
 let e = Ebinop(Badd, b, a)
-let f = Ebinop(Bsub, c, a)
+let f = Ebinop(Bmul, b, a)
+let g = Ebinop(Bmod, b, a)
+let h = Ebinop(Bsub, c, a)
 
-let () = print std_formatter f
+let () = print std_formatter g
