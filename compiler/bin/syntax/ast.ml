@@ -14,7 +14,7 @@ type arith_binop = Badd | Bsub | Bmul | Bdiv | Bmod
 type logic_binop = Beq | Bneq | Blt | Ble | Bgt | Bge
 type andor_binop = Band | Bor
 
-type binop = arith_binop | logic_binop | andor_binop
+type binop = Arith of arith_binop | Logic of logic_binop | AndOr of andor_binop
 
 (*type expression = {
   desc: desc;
@@ -30,5 +30,3 @@ let a = Econst(Int(1))
 let b = Econst(True)
 let c = Econst(Null)
 let d = Eunop(Unot, a)
-let e = Ebinop(Badd, b, a)
-let f = Ebinop(Bsub, c, a)
