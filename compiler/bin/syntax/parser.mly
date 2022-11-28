@@ -77,8 +77,10 @@ expr:
 | d = desc { { desc = d ; loc = $startpos, $endpos } }
 
 desc:
-| c = CST { Econst (Cint c) }
-| c = NULL { Econst (Cnull) }
+| c = CST { Econst (Int c) }
+| c = TRUE { Econst (True) }
+| c = FALSE { Econst (False) }
+| c = NULL { Econst (Null) }
 | id = IDENT { Eident id }
 | TIMES e = expr %prec ustar  { e (* On sait pas lol *) }
 | e1 = expr LBRA (*e2 = *)expr RBRA { e1 (*Pointeur encore...*)  }
