@@ -1,11 +1,5 @@
 open Ast
 
-type typ = 
-  | Tint 
-  | Tbool
-  | Tvoid
-  | Tptr of typ
-
 module Smap = Map.Make(String)
 type env = typ Smap.t
 

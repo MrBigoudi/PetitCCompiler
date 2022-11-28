@@ -6,6 +6,12 @@ type const =
   | False
   | Null
 
+type typ = 
+  | Tint 
+  | Tbool
+  | Tvoid
+  | Tptr of typ
+
 (* *NULL is possible but warning from gcc*)
 type unop = Unot | Ustar
 
@@ -25,6 +31,8 @@ type expression =
   | Econst of const 
   | Eunop of unop * expression
   | Ebinop of binop * expression * expression
+
+type dvar = DVar of typ * ident * expression option
 
 let a = Econst(Int(1))
 let b = Econst(True)
