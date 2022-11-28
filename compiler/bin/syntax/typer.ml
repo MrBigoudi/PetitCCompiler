@@ -34,8 +34,6 @@ let rec type_expr env =  function
       if type_expr env e = Tvoid then failwith "erreur : error: void value not ignored as it ought to be"
       else (match type_expr env e with Tptr(ty) -> ty | _ -> failwith "erreur : invalid type of unary `*`")
   | Ebinop (op, e1, e2) -> type_binop op e1 e2 (* addition of pointers dont work as expected, be more careful ! *)
-  | Dvar(ty, id, None) -> Smap.add id ty env
-  | Dvar(ty, id, Some(e)) -> Smap.add id ty env
 
 and type_const const = match const with
   | Int _ -> Tint
@@ -45,11 +43,12 @@ and type_const const = match const with
       
 and type_binop op e1 e2 = let t1 = type_expr env e1 in let t2 = type_expr env e2 in match op with
   | Logic(_) -> begin if not (equ_type Tvoid t1) && equ_type t1 t2 then Tint 
-  else failwith "erreur : addition ptr pas faite encore"
+    else failwith "erreur : addition ptr pas faite encore"
   end
   (* TODO + - with pointers *)
   | Arith(_) | AndOr(_) -> begin if equ_type Tint t1 && equ_type t1 t2 then Tint 
-  else failwith "erreur : TODO"
+    else failwith "erreur : TODO"
+  end
   | _ -> Tint
 
 let a = type_expr env (Econst(Int(1)))
