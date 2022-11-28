@@ -27,6 +27,7 @@ let rec equ_type ty1 ty2 = match ty1, ty2 with
 
 let rec type_expr env =  function
   | Econst const -> type_const const (* dunno if its more subtle but lets do this way *)
+  | Evar var -> Smap.find var env
   | Eunop (Unot, e) -> (* NULL is of type void* and !NULL of type int *)
       if type_expr env e = Tvoid then failwith "erreur : invalid use of void expression"
       else Tint

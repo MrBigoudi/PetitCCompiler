@@ -29,6 +29,7 @@ type binop = Arith of arith_binop | Logic of logic_binop | AndOr of andor_binop
 
 type expression =
   | Econst of const 
+  | Evar of ident
   | Eunop of unop * expression
   | Ebinop of binop * expression * expression
 
