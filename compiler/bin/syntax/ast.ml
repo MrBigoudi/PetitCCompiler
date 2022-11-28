@@ -6,8 +6,10 @@ type const =
   | False
   | Null
 
-type unop = Unot
+(* *NULL is possible but warning from gcc*)
+type unop = Unot | Ustar
 
+(* comparaison between a ptr and an int is possible, but warning from gcc *)
 type binop = Badd | Bsub | Bmul | Bdiv | Bmod
 
 (*type expression = {

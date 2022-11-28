@@ -14,9 +14,12 @@ type env = typ Smap.t
 let rec type_expr (*env*) =  function
   | Econst Null -> Tptr(Tvoid)
   | Econst _ -> Tint (* dunno if its more subtle but lets do this way *)
-  | Eunop (Unot, c) -> (* NULL is of type void* and !NULL of type int *)
-      if type_expr c = Tvoid then failwith "erreur : invalid use of void expression"
+  | Eunop (Unot, e) -> (* NULL is of type void* and !NULL of type int *)
+      if type_expr e = Tvoid then failwith "erreur : invalid use of void expression"
       else Tint
+  | Eunop (Ustar, e) -> 
+      if type_expr e = Tvoid then failwith "erreur : error: void value not ignored as it ought to be"
+      else (if type_expr e = Tptr(ty) then ty else failwith "erreur : invalid type of unary `*`"
   | Ebinop (_, _, _) -> Tint (* addition of pointers dont work as expected, be more careful ! *)
 
 let a = type_expr (Econst(Int(1)))

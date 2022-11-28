@@ -25,14 +25,16 @@ and print_binop op fmt e1 e2 = match op with
 
 and print_unop op fmt e = match op with
   | Unot -> fprintf fmt "(@[!%a@])" print e 
+  | Ustar -> fprintf fmt "(@[*%a@])" print e
 
 let a = Econst(Int(1))
 let b = Econst(True)
 let c = Econst(Null)
 let d = Eunop(Unot, a)
+let i = Eunop(Ustar, c)
 let e = Ebinop(Badd, b, a)
 let f = Ebinop(Bmul, b, a)
 let g = Ebinop(Bmod, b, a)
 let h = Ebinop(Bsub, c, a)
 
-let () = print std_formatter g
+let () = print std_formatter i
