@@ -25,15 +25,17 @@ let rec equ_type ty1 ty2 = match ty1, ty2 with
   | Tptr(t), Tptr(t') -> equ_type t t'
   | _, _ -> equ_type ty2 ty1
 
-let rec type_expr (*env*) =  function
+let rec type_expr env =  function
   | Econst const -> type_const const (* dunno if its more subtle but lets do this way *)
   | Eunop (Unot, e) -> (* NULL is of type void* and !NULL of type int *)
-      if type_expr e = Tvoid then failwith "erreur : invalid use of void expression"
+      if type_expr env e = Tvoid then failwith "erreur : invalid use of void expression"
       else Tint
   | Eunop (Ustar, e) -> 
-      if type_expr e = Tvoid then failwith "erreur : error: void value not ignored as it ought to be"
-      else (match type_expr e with Tptr(ty) -> ty | _ -> failwith "erreur : invalid type of unary `*`")
+      if type_expr env e = Tvoid then failwith "erreur : error: void value not ignored as it ought to be"
+      else (match type_expr env e with Tptr(ty) -> ty | _ -> failwith "erreur : invalid type of unary `*`")
   | Ebinop (op, e1, e2) -> type_binop op e1 e2 (* addition of pointers dont work as expected, be more careful ! *)
+  | Dvar(ty, id, None) -> Smap.add id ty env
+  | Dvar(ty, id, Some(e)) -> Smap.add id ty env
 
 and type_const const = match const with
   | Int _ -> Tint
@@ -41,7 +43,7 @@ and type_const const = match const with
   | Null -> Tptr(Tvoid)
   | _ -> failwith "erreur compilo 2 TODO"
       
-and type_binop op e1 e2 = let t1 = type_expr e1 in let t2 = type_expr e2 in match op with
+and type_binop op e1 e2 = let t1 = type_expr env e1 in let t2 = type_expr env e2 in match op with
   | Logic(_) -> begin if not (equ_type Tvoid t1) && equ_type t1 t2 then Tint 
   else failwith "erreur : addition ptr pas faite encore"
   end
@@ -50,13 +52,13 @@ and type_binop op e1 e2 = let t1 = type_expr e1 in let t2 = type_expr e2 in matc
   else failwith "erreur : TODO"
   | _ -> Tint
 
-let a = type_expr (Econst(Int(1)))
+let a = type_expr env (Econst(Int(1)))
 let a'= Econst(Int(1))
-let b = type_expr (Econst(True))
+let b = type_expr env (Econst(True))
 let b'= Econst(True)
-let c = type_expr (Econst(Null))
+let c = type_expr env (Econst(Null))
 let c'= Econst(Null)
-(*let f = type_expr (Ebinop(Logic(Beq), c', a'))*)
-let f = type_expr (Ebinop(Logic(Beq), c', c'))
+(*let f = type_expr env (Ebinop(Logic(Beq), c', a'))*)
+let f = type_expr env (Ebinop(Logic(Beq), c', c'))
 
 (*let _ = if equ_type (Tptr(Tbool)) (Tptr(Tint)) then print_string "égal" else print_string "pas égaux"*)
