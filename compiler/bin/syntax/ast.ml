@@ -10,7 +10,11 @@ type const =
 type unop = Unot | Ustar
 
 (* comparaison between a ptr and an int is possible, but warning from gcc *)
-type binop = Badd | Bsub | Bmul | Bdiv | Bmod
+type arith_binop = Badd | Bsub | Bmul | Bdiv | Bmod
+type logic_binop = Beq | Bneq | Blt | Ble | Bgt | Bge
+type andor_binop = Band | Bor
+
+type binop = arith_binop | logic_binop | andor_binop
 
 (*type expression = {
   desc: desc;
