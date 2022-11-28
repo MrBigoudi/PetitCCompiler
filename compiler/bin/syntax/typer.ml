@@ -11,6 +11,25 @@ type env = typ Smap.t
 
 (* lvalue : variable ou *e1 *)
 
+let warning = function 
+  | 1 -> print_string "TODO better warnings int ptr lol\n"
+  | 2 -> print_string "TODO better warnings cast ¯\\_(ツ)_/¯\n"
+  | _ -> print_string "WTF is this warning ????\n"
+
+(* TODO : faire les tests *)
+let rec equ_type ty1 ty2 = match ty1, ty2 with
+  | t1, t2 when t1 = t2 -> true
+  | Tint, Tbool -> true
+  | Tvoid, Tint -> false
+  | Tvoid, Tbool -> false
+  | Tptr(t), Tint -> warning 1 ; true 
+  | Tptr(Tvoid), Tptr(t) -> true
+  | Tptr(Tint), Tptr(Tbool) -> warning 2 ; true (* /!\ call warning to do *)
+  | Tptr(Tbool), Tptr(Tint) -> warning 2 ; true 
+  | Tptr(Tvoid), t -> warning 2 ; true (* /!\ call warning to do *)
+  | Tptr(t), Tptr(t') -> equ_type t t'
+  | _, _ -> equ_type ty2 ty1
+
 let rec type_expr (*env*) =  function
   | Econst Null -> Tptr(Tvoid)
   | Econst _ -> Tint (* dunno if its more subtle but lets do this way *)
@@ -19,8 +38,11 @@ let rec type_expr (*env*) =  function
       else Tint
   | Eunop (Ustar, e) -> 
       if type_expr e = Tvoid then failwith "erreur : error: void value not ignored as it ought to be"
-      else (if type_expr e = Tptr(ty) then ty else failwith "erreur : invalid type of unary `*`"
-  | Ebinop (_, _, _) -> Tint (* addition of pointers dont work as expected, be more careful ! *)
+      else (match type_expr e with Tptr(ty) -> ty | _ -> failwith "erreur : invalid type of unary `*`")
+  | Ebinop (op, e1, e2) -> Tint(* addition of pointers dont work as expected, be more careful ! *)
+      
+(*and type_binop op e1 e2 = match op with
+  | logic_binop -> if *)
 
 let a = type_expr (Econst(Int(1)))
 let a'= Econst(Int(1))
@@ -30,3 +52,5 @@ let c = type_expr (Econst(Null))
 let c'= Econst(Null)
 let e = type_expr (Ebinop(Badd, b', a'))
 let f = type_expr (Ebinop(Bsub, c', a'))
+
+let _ = if equ_type (Tptr(Tbool)) (Tptr(Tint)) then print_string "égal" else print_string "pas égaux"
