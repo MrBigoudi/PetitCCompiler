@@ -33,7 +33,8 @@
 %left MINUS PLUS
 %left TIMES DIV MOD
 %right NOT AMP INCR DECR ustar uplus uminus 
-%nonassoc IF
+%nonassoc LBRA
+%nonassoc endif
 %nonassoc ELSE
 
 /* Point d'entrée de la grammaire */
@@ -102,7 +103,7 @@ desc:
 instr:
 | SEMI_COLON { Iempt }
 | e = expr SEMI_COLON { Iexpr e }
-| IF LPAR e = expr RPAR ist = instr { Iif(e, ist, Iempt) }
+| IF LPAR e = expr RPAR ist = instr %prec endif { Iif(e, ist, Iempt) }
 | IF LPAR e = expr RPAR ist1 = instr ELSE ist2 = instr { Iif(e, ist1, ist2) }
 | WHILE LPAR e = expr RPAR ist = instr { Iwhile(e, ist) }
 | FOR LPAR dv = decl_var? SEMI_COLON e1 = expr? SEMI_COLON el = separated_list(COMMA, expr) RPAR ist = instr { Ifor(dv, e1, el, ist) }
