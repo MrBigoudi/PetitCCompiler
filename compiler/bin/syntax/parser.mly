@@ -62,7 +62,6 @@ typ:
 |INT { Tint }
 |BOOL { Tbool }
 |ty = typ TIMES { Tptr(ty) } 
-/* ptr todo */
 ; 
 
 param:
