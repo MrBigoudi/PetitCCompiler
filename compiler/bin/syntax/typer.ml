@@ -51,14 +51,3 @@ and type_binop op e1 e2 = let t1 = type_expr env e1 in let t2 = type_expr env e2
     else failwith "erreur : TODO"
   end
   | _ -> Tint
-
-let a = type_expr env (Econst(Int(1)))
-let a'= Econst(Int(1))
-let b = type_expr env (Econst(True))
-let b'= Econst(True)
-let c = type_expr env (Econst(Null))
-let c'= Econst(Null)
-(*let f = type_expr env (Ebinop(Logic(Beq), c', a'))*)
-let f = type_expr env (Ebinop(Logic(Beq), c', c'))
-
-(*let _ = if equ_type (Tptr(Tbool)) (Tptr(Tint)) then print_string "égal" else print_string "pas égaux"*)

@@ -37,8 +37,3 @@ and desc =
   | Esizeof of expression (* maybe adding primitives *)
 
 type dvar = DVar of typ * ident * expression option
-
-let a = Econst(Int(1))
-let b = Econst(True)
-let c = Econst(Null)
-let d = Eunop(Unot, a)
