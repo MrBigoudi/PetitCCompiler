@@ -14,35 +14,29 @@ let warning = function
 let rec equ_type ty1 ty2 = match ty1, ty2 with
   | t1, t2 when t1 = t2 -> true
   | Tint, Tbool -> true
-  | Tvoid, Tint -> false
-  | Tvoid, Tbool -> false
-  | Tvoid, Tptr(_) -> false
-  | Tptr(Tvoid), Tptr(t) -> true
-  | Tptr(Tint), Tptr(Tbool) -> warning 2 ; true (* /!\ call warning to do *)
-  | Tptr(Tbool), Tptr(Tint) -> warning 2 ; true 
-  | Tptr(Tvoid), _ -> warning 5 ; true (* /!\ call warning to do *)
-  | Tptr(t), Tint -> warning 1 ; true 
-  | Tptr(t), Tptr(t') -> equ_type t t'
-  | _, _ -> equ_type ty2 ty1
+  | Tbool, Tint -> true
+  | Tptr(_), Tptr(Tvoid) -> true
+  | Tptr(Tvoid), Tptr(_) -> true
+  | _, _ -> false
 
-let rec type_expr env =  function
+let rec type_expr env e = match e.desc with 
   | Econst const -> type_const const (* dunno if its more subtle but lets do this way *)
   | Evar var -> Smap.find var env
-  | Eunop (Unot, e) -> (* NULL is of type void* and !NULL of type int *)
-      if type_expr env e = Tvoid then failwith "erreur : invalid use of void expression"
-      else Tint
-  | Eunop (Ustar, e) -> 
-      if type_expr env e = Tvoid then failwith "erreur : error: void value not ignored as it ought to be"
-      else (match type_expr env e with Tptr(ty) -> ty | _ -> failwith "erreur : invalid type of unary `*`")
-  | Ebinop (op, e1, e2) -> type_binop op e1 e2 (* addition of pointers dont work as expected, be more careful ! *)
+  | Eunop (op, e) -> type_unop env op e
+  | Ebinop (op, e1, e2) -> type_binop env op e1 e2 (* addition of pointers dont work as expected, be more careful ! *)
 
 and type_const const = match const with
   | Int _ -> Tint
   | True | False -> Tbool
   | Null -> Tptr(Tvoid)
   | _ -> failwith "erreur compilo 2 TODO"
+
+and type_unop env op e = let t = type_expr env e in match op with
+  | Unot -> if t = Tvoid then failwith "erreur : invalid use of void expression" else Tint
+  | Ustar -> if type_expr env e = Tvoid then failwith "erreur : error: void value not ignored as it ought to be"
+      else (match t with Tptr(ty) -> ty | _ -> failwith "erreur : invalid type of unary `*`")
       
-and type_binop op e1 e2 = let t1 = type_expr env e1 in let t2 = type_expr env e2 in match op with
+and type_binop env op e1 e2 = let t1 = type_expr env e1 in let t2 = type_expr env e2 in match op with
   | Logic(_) -> begin if not (equ_type Tvoid t1) && equ_type t1 t2 then Tint 
     else failwith "erreur : addition ptr pas faite encore"
   end
