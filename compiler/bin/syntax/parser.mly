@@ -81,22 +81,22 @@ desc:
 | c = TRUE { Econst (True) }
 | c = FALSE { Econst (False) }
 | c = NULL { Econst (Null) }
-| id = IDENT { Eident id }
-| TIMES e = expr %prec ustar  { e (* On sait pas lol *) }
-| e1 = expr LBRA (*e2 = *)expr RBRA { e1 (*Pointeur encore...*)  }
+| id = IDENT { Evar id }
+| TIMES e = expr %prec ustar  { Eunop(Ustar(e)) }
+| e1 = expr LBRA e2 = expr RBRA { Eunop(Ustar(Binop(Badd, e1, e2))) }
 | e1 = expr ASSIGN e2 = expr  { Eassign(e1, e2) }
 | id = IDENT LPAR el = separated_list(COMMA, expr) RPAR { Ecall(id, el) }
 /* might be shorter with using a group */ 
-| INCR e = expr { Ebinop(Badd, (Econst 1), e) }
-| DECR e = expr { Ebinop(Bsub, (Econst 1), e) }
-| e = expr INCR { Ebinop(Badd, (Econst 1), e) }
-| e = expr DECR { Ebinop(Bsub, (Econst 1), e) }
-| AMP e = expr  { e (* Ptr encore *) }
+| INCR e = expr { Eunop(Uincr_l, e) }
+| DECR e = expr { Eunop(Udecr_l, e) }
+| e = expr INCR { Eunop(Uincr_r, e) }
+| e = expr DECR { Eunop(Udecr_r, e) }
+| AMP e = expr  { Eunop(Uamp, e) }
 | NOT e = expr  { Eunop(Unot, e) }
 | PLUS e = expr %prec uplus { Ebinop(Badd, (Econst 0), e) }
 | MINUS e = expr %prec uminus { Ebinop(Bsub, (Econst 0), e) }
 | e1 = expr op = bin_op e2 = expr { Ebinop(op, e1, e2) }
-| SIZEOF LPAR e = expr RPAR { e (* Sizeof pas encore géré *) }
+| SIZEOF LPAR e = expr RPAR { Esizeof(e) }
 | LPAR e = expr RPAR { e }
 ;
 
