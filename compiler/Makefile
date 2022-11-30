@@ -4,6 +4,7 @@ TEST_FOLDER := test
 
 # TARGETS
 TARGET := main.exe
+COMPILER_NAME := petitCCompiler.exe
 TEST   := prettyPrinterTests.exe
 
 
@@ -18,6 +19,7 @@ tests:
 $(TARGET):
 	@echo -e "\n********** Building compiler **********\n"
 	dune build $(BIN_FOLDER)/$(TARGET)
+	@mv $(BIN_FOLDER)/$(TARGET) $(COMPILER_NAME)
 
 # explain:
 # 	menhir --base /tmp/parser --dump --explain parser.mly
