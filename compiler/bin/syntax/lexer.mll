@@ -3,6 +3,7 @@
 {
     open Lexing
     open Parser
+    (* open Format *)
 
     (** Exception for lexing errors *)
     exception Lexing_error of string
@@ -37,6 +38,13 @@
             (* if not a keyword return an ident *)
             try Hashtbl.find h key with _ -> IDENT key
 
+
+    (* Raise an error if an integer is not valid *)
+    (** val check_interger : string -> unit *)
+    let check_integer integer =
+        try ignore(Int32.of_string integer) 
+            with _ -> raise (Lexing_error ("not a valid integer: "^integer^"!"))
+
 }
 
 (** White spaces *)
@@ -65,7 +73,7 @@ rule token = parse
     (* manage comments *)
     | "//" [^ '\n']* { new_line lexbuf; token lexbuf }
     | "//" [^ '\n']* eof { EOF }
-    | "/*"   { comment lexbuf }
+    | "/*" { comment lexbuf }
     
     (* manage white spaces *)
     | '\n'   { new_line lexbuf; token lexbuf }
@@ -104,9 +112,10 @@ rule token = parse
 
     (* manages includes *)
     | include { new_line lexbuf; INCLUDE }
+    | integer as s { begin check_integer s; CST (int_of_string s); end }
     | ident as id  { manage_kw id }
-    | integer as s { CST (int_of_string s) }
-    | eof          { EOF }
+    | eof  { EOF }
+    | _ as c { raise (Lexing_error("illegal character -> " ^ (String.make 1 c) ^ "!")) }
 
 
 (** Deals with comments *)
@@ -114,4 +123,4 @@ and comment = parse
     | "*/" {token lexbuf}
     | '\n' { new_line lexbuf; comment lexbuf }
     | _    {comment lexbuf}
-    | eof  {failwith "Unfinished comment"}
+    | eof  { raise (Lexing_error("unfinished comment !")) }
