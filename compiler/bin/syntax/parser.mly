@@ -41,21 +41,21 @@
 %start file
 
 /* Type des valeurs renvoyées par l'analyseur syntaxique */
-%type <Ast.cfile> file
+%type <Ast.expression> file
 
 %%
 
 file:
 includ*
 fctl = decl_fct*
-EOF { CFinclude fctl }
+EOF { failwith "not now parser" }
 ;
 
 decl_fct:
   ty = typ 
   id = IDENT
   LPAR pl = param* RPAR
-  bl = block { DFct(ty, id, pl, bl) }
+  bl = block { failwith "not now parser" }
 ;
 
 typ: 
@@ -66,7 +66,7 @@ typ:
 ; 
 
 param:
-  ty = typ id = IDENT { PIdnt(ty, id) }
+  ty = typ id = IDENT { failwith "not now parser" }
 ;
 
 includ:
@@ -82,8 +82,8 @@ desc:
 | c = FALSE { Econst (False) }
 | c = NULL { Econst (Null) }
 | id = IDENT { Evar id }
-| TIMES e = expr %prec ustar  { Eunop(Ustar(e)) }
-| e1 = expr LBRA e2 = expr RBRA { Eunop(Ustar(Binop(Badd, e1, e2))) }
+| TIMES e = expr %prec ustar  { Eunop(Ustar, e) }
+| e1 = expr LBRA e2 = expr RBRA { Eunop(Ustar, { desc = Ebinop(Arith(Badd), e1, e2) ; loc = e1.loc } ) (* precise the localisation *)} 
 | e1 = expr ASSIGN e2 = expr  { Eassign(e1, e2) }
 | id = IDENT LPAR el = separated_list(COMMA, expr) RPAR { Ecall(id, el) }
 /* might be shorter with using a group */ 
@@ -93,33 +93,33 @@ desc:
 | e = expr DECR { Eunop(Udecr_r, e) }
 | AMP e = expr  { Eunop(Uamp, e) }
 | NOT e = expr  { Eunop(Unot, e) }
-| PLUS e = expr %prec uplus { Ebinop(Badd, (Econst 0), e) }
-| MINUS e = expr %prec uminus { Ebinop(Bsub, (Econst 0), e) }
+| PLUS e = expr %prec uplus { Eunop(Uplus, e) }
+| MINUS e = expr %prec uminus { Eunop(Uminus, e) }
 | e1 = expr op = bin_op e2 = expr { Ebinop(op, e1, e2) }
 | SIZEOF LPAR e = expr RPAR { Esizeof(e) }
-| LPAR e = expr RPAR { e }
+| LPAR e = expr RPAR { e.desc }
 ;
 
 instr:
-| SEMI_COLON { Iempt }
-| e = expr SEMI_COLON { Iexpr e }
-| IF LPAR e = expr RPAR ist = instr %prec endif { Iif(e, ist, Iempt) }
-| IF LPAR e = expr RPAR ist1 = instr ELSE ist2 = instr { Iif(e, ist1, ist2) }
-| WHILE LPAR e = expr RPAR ist = instr { Iwhile(e, ist) }
-| FOR LPAR dv = decl_var? SEMI_COLON e1 = expr? SEMI_COLON el = separated_list(COMMA, expr) RPAR ist = instr { Ifor(dv, e1, el, ist) }
-| bl = block { Iblock bl }
-| RETURN e = expr? SEMI_COLON { Iret e }
-| BREAK SEMI_COLON { Ibrk }
-| CONTINUE SEMI_COLON { Icontinue }
+| SEMI_COLON { failwith "not now parser" }
+| e = expr SEMI_COLON { failwith "not now parser" }
+| IF LPAR e = expr RPAR ist = instr %prec endif { failwith "not now parser" }
+| IF LPAR e = expr RPAR ist1 = instr ELSE ist2 = instr { failwith "not now parser" }
+| WHILE LPAR e = expr RPAR ist = instr { failwith "not now parser" }
+| FOR LPAR dv = decl_var? SEMI_COLON e1 = expr? SEMI_COLON el = separated_list(COMMA, expr) RPAR ist = instr { failwith "not now parser" }
+| bl = block { failwith "not now parser" }
+| RETURN e = expr? SEMI_COLON { failwith "not now parser" }
+| BREAK SEMI_COLON { failwith "not now parser" }
+| CONTINUE SEMI_COLON { failwith "not now parser" }
 ;
 
 block:
-| BEG di = decl_instr* END { Blck di }
+| BEG di = decl_instr* END { failwith "not now parser" }
 ;
 
 decl_instr:
-| dv = decl_var SEMI_COLON { DIvar dv }
-| ist = instr { DInstr ist }
+| dv = decl_var SEMI_COLON { failwith "not now parser" }
+| ist = instr { failwith "not now parser" }
 ;
 
 ass_var:
@@ -129,17 +129,17 @@ decl_var:
 ty = typ id = IDENT e = ass_var? { DVar(ty, id, e) }
 
 %inline bin_op:
-| EQUAL { Beq }
-| NOT_EQUAL { Bneq }
-| LESS_THAN { Blt }
-| LESS_EQUAL { Ble }
-| GREATER_THAN { Bgt }
-| GREATER_EQUAL  { Bge }
-| PLUS { Badd }
-| MINUS { Bsub }
-| TIMES { Bmul }
-| DIV { Bdiv }
-| MOD { Bmod }
-| AND { Band }
-| OR { Bor }
+| EQUAL { Logic(Beq) }
+| NOT_EQUAL { Logic(Bneq) }
+| LESS_THAN { Logic(Blt) }
+| LESS_EQUAL { Logic(Ble) }
+| GREATER_THAN { Logic(Bgt) }
+| GREATER_EQUAL  { Logic(Bge) }
+| PLUS { Arith(Badd) }
+| MINUS { Arith(Bsub) }
+| TIMES { Arith(Bmul) }
+| DIV { Arith(Bdiv) }
+| MOD { Arith(Bmod) }
+| AND { AndOr(Band) }
+| OR { AndOr(Bor) }
 ;
