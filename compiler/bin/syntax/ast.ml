@@ -22,6 +22,8 @@ type andor_binop = Band | Bor
 
 type binop = Arith of arith_binop | Logic of logic_binop | AndOr of andor_binop
 
+type param = Param of typ * ident
+
 type expression = {
   desc: desc;
   loc: Lexing.position * Lexing.position
@@ -36,5 +38,25 @@ and desc =
   | Ecall of ident * expression list
   | Esizeof of expression (* maybe adding primitives *)
 
-type dvar = DVar of typ * ident * expression option
+type dvar = Dvar of typ * ident * expression option
 
+and dinstr = 
+  | DinstrVar of dvar
+  | Dinstr of instr
+
+and dfct = Dfct of typ * ident * param list * block
+
+and block = Block of dinstr list
+
+and instr =
+  | Iempt 
+  | Iexpr of expression
+  | Iif of expression * instr * instr
+  | Iwhile of expression * instr
+  | Ifor of dvar option * expression option * expression list * instr
+  | Iblock of block
+  | Iret of expression option
+  | Ibreak 
+  | Icontinue
+
+type fileInclude = FileInclude of dfct list

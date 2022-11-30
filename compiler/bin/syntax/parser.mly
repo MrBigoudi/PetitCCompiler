@@ -41,7 +41,7 @@
 %start file
 
 /* Type des valeurs renvoyées par l'analyseur syntaxique */
-%type <Ast.expression> file
+%type <Ast.fileInclude> file
 
 %%
 
@@ -55,7 +55,7 @@ decl_fct:
   ty = typ 
   id = IDENT
   LPAR pl = param* RPAR
-  bl = block { DFct(ty, id, pl, bl) }
+  bl = block { Dfct(ty, id, pl, bl) }
 ;
 
 typ: 
@@ -78,9 +78,9 @@ expr:
 
 desc:
 | c = CST { Econst (Int c) }
-| c = TRUE { Econst (True) }
-| c = FALSE { Econst (False) }
-| c = NULL { Econst (Null) }
+| TRUE { Econst (True) }
+| FALSE { Econst (False) }
+| NULL { Econst (Null) }
 | id = IDENT { Evar id }
 | TIMES e = expr %prec ustar  { Eunop(Ustar, e) }
 | e1 = expr LBRA e2 = expr RBRA { Eunop(Ustar, { desc = Ebinop(Arith(Badd), e1, e2) ; loc = e1.loc } ) (* precise the localisation *)} 
@@ -106,7 +106,7 @@ instr:
 | IF LPAR e = expr RPAR ist = instr %prec endif { Iif(e,ist,Iempt) }
 | IF LPAR e = expr RPAR ist1 = instr ELSE ist2 = instr { Iif(e, ist1, ist2) }
 | WHILE LPAR e = expr RPAR ist = instr { Iwhile(e, ist) }
-| FOR LPAR dv = decl_var? SEMI_COLON e = expr? SEMI_COLON el = separated_list(COMMA, expr) RPAR ist = instr { Ifor(dv, e, el) }
+| FOR LPAR dv = decl_var? SEMI_COLON e = expr? SEMI_COLON el = separated_list(COMMA, expr) RPAR ist = instr { Ifor(dv, e, el, ist) }
 | bl = block { Iblock(bl) }
 | RETURN e = expr? SEMI_COLON { Iret(e) }
 | BREAK SEMI_COLON { Ibreak }
@@ -118,7 +118,7 @@ block:
 ;
 
 decl_instr:
-| dv = decl_var SEMI_COLON { Dvar(dv) }
+| dv = decl_var SEMI_COLON { DinstrVar(dv) }
 | ist = instr { Dinstr(ist) }
 ;
 
@@ -126,7 +126,7 @@ ass_var:
 EQUAL e = expr { e }
 
 decl_var:
-ty = typ id = IDENT e = ass_var? { DVar(ty, id, e) }
+ty = typ id = IDENT e = ass_var? { Dvar(ty, id, e) }
 
 %inline bin_op:
 | EQUAL { Logic(Beq) }
