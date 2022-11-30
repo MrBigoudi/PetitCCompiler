@@ -5,13 +5,8 @@ type env = typ Smap.t
 
 (* lvalue : variable ou *e1 *)
 
-let warning = function 
-  | 1 -> print_string "TODO better warnings int ptr lol\n"
-  | 2 -> print_string "TODO better warnings cast ¯\\_(ツ)_/¯\n"
-  | _ -> print_string "WTF is this warning ????\n"
-
 (* TODO : faire les tests *)
-let rec equ_type ty1 ty2 = match ty1, ty2 with
+let equ_type ty1 ty2 = match ty1, ty2 with
   | t1, t2 when t1 = t2 -> true
   | Tint, Tbool -> true
   | Tbool, Tint -> true
@@ -24,17 +19,18 @@ let rec type_expr env e = match e.desc with
   | Evar var -> Smap.find var env
   | Eunop (op, e) -> type_unop env op e
   | Ebinop (op, e1, e2) -> type_binop env op e1 e2 (* addition of pointers dont work as expected, be more careful ! *)
+  | _ -> failwith "Oops not now"
 
 and type_const const = match const with
   | Int _ -> Tint
   | True | False -> Tbool
   | Null -> Tptr(Tvoid)
-  | _ -> failwith "erreur compilo 2 TODO"
 
 and type_unop env op e = let t = type_expr env e in match op with
   | Unot -> if t = Tvoid then failwith "erreur : invalid use of void expression" else Tint
   | Ustar -> if type_expr env e = Tvoid then failwith "erreur : error: void value not ignored as it ought to be"
       else (match t with Tptr(ty) -> ty | _ -> failwith "erreur : invalid type of unary `*`")
+  | _ -> failwith "Oops not now"
       
 and type_binop env op e1 e2 = let t1 = type_expr env e1 in let t2 = type_expr env e2 in match op with
   | Logic(_) -> begin if not (equ_type Tvoid t1) && equ_type t1 t2 then Tint 
@@ -44,4 +40,3 @@ and type_binop env op e1 e2 = let t1 = type_expr env e1 in let t2 = type_expr en
   | Arith(_) | AndOr(_) -> begin if equ_type Tint t1 && equ_type t1 t2 then Tint 
     else failwith "erreur : TODO"
   end
-  | _ -> Tint
