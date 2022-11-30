@@ -1,15 +1,21 @@
+(** Main program for the petitC Compiler *)
+
 open Format
 open Syntax
 
-let usage = "usage: petitCCompiler [options] file.py"
+(** Print the compiler usage *)
+let usage = "usage: petitCCompiler [options] file.c"
 
+(** A compiler option *)
 let parse_only = ref true
 
+(** The option list*)
 let spec =
   [
     "--parse-only", Arg.Set parse_only, "  stop after parsing";
   ]
 
+(** Check if the file given as argument seems correct *)
 let file =
   let file = ref None in
   let set_file s =
@@ -20,7 +26,7 @@ let file =
   Arg.parse spec set_file usage;
   match !file with Some f -> f | None -> Arg.usage spec usage; exit 1
 
-
+(** The main function for the compiler *)
 let () =
   let c = open_in file in
   try

@@ -1,16 +1,13 @@
-(* Lexer for petitC *)
+(** Lexer for the petitC Compiler *)
 
 {
     open Lexing
     open Parser
 
-    (* exception for lexing errors *)
+    (** Exception for lexing errors *)
     exception Lexing_error of string
 
-    (* note Prof : penser à appeler la fonction Lexing.new_line
-        à chaque retour chariot (caractère '\n') *)
-
-    (* table mapping keywords to tokens *)
+    (** Table mapping keywords to tokens *)
     let kwd_table =
     [
         "bool", BOOL;
@@ -29,7 +26,7 @@
         "while", WHILE;
     ]
 
-    (* initiate the hash table + getter *)
+    (** Initiate the hash table and the getters *)
     let manage_kw =
         (* initiate the hash map *)
         let h = Hashtbl.create 32 in
@@ -42,28 +39,28 @@
 
 }
 
-(* white spaces *)
+(** White spaces *)
 let space = [' ' '\t' '\r']
 
-(* letters *)
+(** Letters *)
 let alpha = ['a'-'A' 'z'-'Z']
 
-(* digits *)
+(** Digits *)
 let digit = [ '0'-'9']
 
-(* identifiers *)
+(** Identifiers *)
 let ident = (alpha | '_')(alpha | digit | '_')*
 
-(* chars *)
+(** Chars *)
 let character = [' '-'&'  '('-'['  ']'-'~'  '\\'  '\''  '\n'  '\t'  '\r'] (* without ' and \ *)
 
-(* integers *)
+(** Integers *)
 let integer = '0' | (['1'-'9']digit*) | ('\''(character)'\'')
 
-(* preprocessing *)
+(** Preprocessing *)
 let include = "#include"space+'<'(character # '>')*">\n"
 
-(* identifies tokens *)
+(** Identifies tokens *)
 rule token = parse
     (* manage comments *)
     | "//" [^ '\n']* { new_line lexbuf; token lexbuf }
@@ -112,7 +109,7 @@ rule token = parse
     | eof          { EOF }
 
 
-(* deals with comments *)
+(** Deals with comments *)
 and comment = parse
     | "*/" {token lexbuf}
     | '\n' { new_line lexbuf; comment lexbuf }
