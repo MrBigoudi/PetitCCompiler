@@ -13,7 +13,7 @@ type typ =
   | Tptr of typ
 
 (* *NULL is possible but warning from gcc*)
-type unop = Unot | Ustar | Uamp | Uincr_l | Udecr_l | Uincr_r | Udecr_r
+type unop = Unot | Ustar | Uamp | Uincr_l | Udecr_l | Uincr_r | Udecr_r | Uplus | Uminus
 
 (* comparaison between a ptr and an int is possible, but warning from gcc *)
 type arith_binop = Badd | Bsub | Bmul | Bdiv | Bmod
@@ -33,7 +33,7 @@ and desc =
   | Eunop of unop * expression
   | Ebinop of binop * expression * expression
   | Eassign of expression * expression
-  | Ecall of ident * expression
+  | Ecall of ident * expression list
   | Esizeof of expression (* maybe adding primitives *)
 
 type dvar = DVar of typ * ident * expression option
