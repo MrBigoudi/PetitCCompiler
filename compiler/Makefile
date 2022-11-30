@@ -31,7 +31,7 @@ all: help
 
 
 ## Build the compiler
-main: clean
+compiler: clean
 	@echo -e "\n********** Building compiler **********\n"
 	dune build
 	@ln -s $(BIN_FOLDER)/$(TARGET) $(COMPILER)
@@ -52,8 +52,11 @@ explain:
 
 ## Delete build files and executables
 clean:
-	@dune clean
-	@if [ -f $(COMPILER) ]; then rm $(COMPILER); fi
+	@echo -e "\n********** Cleaning project **********\n"
+	dune clean
+ifneq ("$(wildcard $(COMPILER))","")
+	@rm $(COMPILER)
+endif
 
 
 ## Show help
