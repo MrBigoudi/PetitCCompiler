@@ -48,14 +48,14 @@
 file:
 includ*
 fctl = decl_fct*
-EOF { failwith "not now parser" }
+EOF { FileInclude fctl }
 ;
 
 decl_fct:
   ty = typ 
   id = IDENT
   LPAR pl = param* RPAR
-  bl = block { failwith "not now parser" }
+  bl = block { DFct(ty, id, pl, bl) }
 ;
 
 typ: 
@@ -66,7 +66,7 @@ typ:
 ; 
 
 param:
-  ty = typ id = IDENT { failwith "not now parser" }
+  ty = typ id = IDENT { Param(ty,id) }
 ;
 
 includ:
@@ -101,25 +101,25 @@ desc:
 ;
 
 instr:
-| SEMI_COLON { failwith "not now parser" }
-| e = expr SEMI_COLON { failwith "not now parser" }
-| IF LPAR e = expr RPAR ist = instr %prec endif { failwith "not now parser" }
-| IF LPAR e = expr RPAR ist1 = instr ELSE ist2 = instr { failwith "not now parser" }
-| WHILE LPAR e = expr RPAR ist = instr { failwith "not now parser" }
-| FOR LPAR dv = decl_var? SEMI_COLON e1 = expr? SEMI_COLON el = separated_list(COMMA, expr) RPAR ist = instr { failwith "not now parser" }
-| bl = block { failwith "not now parser" }
-| RETURN e = expr? SEMI_COLON { failwith "not now parser" }
-| BREAK SEMI_COLON { failwith "not now parser" }
-| CONTINUE SEMI_COLON { failwith "not now parser" }
+| SEMI_COLON { Iempt }
+| e = expr SEMI_COLON { Iexpr(e) }
+| IF LPAR e = expr RPAR ist = instr %prec endif { Iif(e,ist,Iempt) }
+| IF LPAR e = expr RPAR ist1 = instr ELSE ist2 = instr { Iif(e, ist1, ist2) }
+| WHILE LPAR e = expr RPAR ist = instr { Iwhile(e, ist) }
+| FOR LPAR dv = decl_var? SEMI_COLON e = expr? SEMI_COLON el = separated_list(COMMA, expr) RPAR ist = instr { Ifor(dv, e, el) }
+| bl = block { Iblock(bl) }
+| RETURN e = expr? SEMI_COLON { Iret(e) }
+| BREAK SEMI_COLON { Ibreak }
+| CONTINUE SEMI_COLON { Icontinue }
 ;
 
 block:
-| BEG di = decl_instr* END { failwith "not now parser" }
+| BEG di = decl_instr* END { Block(di) }
 ;
 
 decl_instr:
-| dv = decl_var SEMI_COLON { failwith "not now parser" }
-| ist = instr { failwith "not now parser" }
+| dv = decl_var SEMI_COLON { Dvar(dv) }
+| ist = instr { Dinstr(ist) }
 ;
 
 ass_var:
