@@ -56,7 +56,7 @@
 let space = [' ' '\t' '\r']
 
 (** Letters *)
-let alpha = ['a'-'A' 'z'-'Z']
+let alpha = ['a'-'z' 'A'-'Z']
 
 (** Digits *)
 let digit = [ '0'-'9']
