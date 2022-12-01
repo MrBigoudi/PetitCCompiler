@@ -54,7 +54,7 @@ file:
 decl_fct:
   ty = typ 
   id = IDENT
-  LPAR pl = param* RPAR
+  LPAR pl = separated_list(COMMA, param) RPAR
   bl = block { Dfct(ty, id, pl, bl) }
 ;
 

@@ -2,4 +2,5 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-int main() { int x='a'; }
+int f(int x, int y) {}
+int main() {}
