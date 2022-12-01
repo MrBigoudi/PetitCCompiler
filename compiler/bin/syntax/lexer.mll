@@ -123,7 +123,11 @@ rule token = parse
     (* manages includes *)
     | include { new_line lexbuf; INCLUDE }
 
-    (* manages integers *)
+    (* manages chars *)
+    | "\'\\t\'"  { CST (Char.code '\t') }
+    | "\'\\\'\'" { CST (Char.code '\'') }
+    | "\'\\\\\'" { CST (Char.code '\\') }
+    | "\'\\n\'"  { CST (Char.code '\n') }
     | '\''(character)'\'' as c { CST (Char.code (String.get c 1)) }
     | integer as s { begin check_integer s; CST (int_of_string s); end }
 
