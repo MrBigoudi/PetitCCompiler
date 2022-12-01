@@ -128,6 +128,7 @@ rule token = parse
     | "\'\\\'\'" { CST (Char.code '\'') }
     | "\'\\\\\'" { CST (Char.code '\\') }
     | "\'\\n\'"  { CST (Char.code '\n') }
+    | "\'\\r\'"  { CST (Char.code '\r') }
     | '\''(character)'\'' as c { CST (Char.code (String.get c 1)) }
     | integer as s { begin check_integer s; CST (int_of_string s); end }
 
