@@ -96,7 +96,7 @@ desc:
   | PLUS e = expr %prec uplus { Eunop(Uplus, e) }
   | MINUS e = expr %prec uminus { Eunop(Uminus, e) }
   | e1 = expr op = bin_op e2 = expr { Ebinop(op, e1, e2) }
-  | SIZEOF LPAR e = expr RPAR { Esizeof(e) }
+  | SIZEOF LPAR ty = typ RPAR { Esizeof(ty) }
   | LPAR e = expr RPAR { e.desc }
 ;
 

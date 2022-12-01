@@ -44,8 +44,8 @@
         raise( Lexing_error (error_msg, token))
 
 
-    (* Raise an error if an integer is not valid *)
-    (** val check_interger : string -> unit *)
+    (** Raise an error if an integer is not valid
+        val check_interger : string -> unit *)
     let check_integer integer =
         try ignore(Int32.of_string integer) 
             with _ -> (error_handler "not a valid integer" integer)
@@ -65,10 +65,10 @@ let digit = [ '0'-'9']
 let ident = (alpha | '_')(alpha | digit | '_')*
 
 (** Chars *)
-let character = [' '-'&'  '('-'['  ']'-'~'  '\\'  '\''  '\n'  '\t'  '\r'] (* without ' and \ *)
+let character = [' '-'&'  '('-'['  ']'-'~'  '\n'  '\t'  '\r'] (* without ' and \ *)
 
 (** Integers *)
-let integer = '0' | (['1'-'9']digit*) | ('\''(character)'\'')
+let integer = '0' | (['1'-'9']digit*) | '\''(character)'\''
 
 (** Preprocessing *)
 let include = "#include"space+'<'(character # '>')*">\n"
@@ -117,7 +117,11 @@ rule token = parse
 
     (* manages includes *)
     | include { new_line lexbuf; INCLUDE }
+
+    (* manages integers *)
+    | '\''(character)'\'' as c { CST (Char.code (String.get c 1)) }
     | integer as s { begin check_integer s; CST (int_of_string s); end }
+
     | ident as id  { manage_kw id }
     | eof  { EOF }
     | _ as c { error_handler "illegal character" (String.make 1 c) }

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 int main(){
-    /*
-    return 0;
+    int a = (1+2)//test
+        *3;
+    return 'a';
 }
