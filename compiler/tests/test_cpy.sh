@@ -310,6 +310,7 @@ case $option in
         echo "-v1     : tester la partie 1 (verbose)"
         echo "-v2     : tester la partie 2 (verbose)"
         echo "-v3     : tester la partie 3 (verbose)"
+        echo "-gcc    : tester avec gcc"
         echo "-all    : tout tester";;
 
 esac

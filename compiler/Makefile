@@ -46,7 +46,7 @@ tests: compiler
 ## Test if the parser generates conflicts
 explain:
 	@echo -e "\n********** Checking parser conflicts **********\n"
-	@menhir --base /tmp/parser --dump --explain $(PARSER)
+	menhir --base /tmp/parser --dump --explain $(PARSER)
 	@cat /tmp/parser.conflicts
 
 

@@ -4,10 +4,5 @@
 #include <stdio.h>
 
 int main() {
-  putchar(
-    '\t'
-    );
-  putchar('\'');
-  putchar('\\');
-  putchar('\n');
+  return 3$;
 }
