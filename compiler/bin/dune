@@ -3,3 +3,6 @@
  (libraries syntax ocolor)
  (promote (until-clean))
  (flags ()))
+
+(documentation
+ (mld_files :standard))

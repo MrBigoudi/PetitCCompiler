@@ -2,12 +2,21 @@
 (using menhir 2.0)
 (wrapped_executables false)
 
-(name compiler)
+(authors "ANASTASSIADES Antoine" "KEDADRY Yannis")
+(license MIT License)
+
+
+(package
+ (name compiler)
+ (depends ocaml dune ocamllex ocolor )
+ (synopsis "A compiler for the PetitC language")
+ (allow_empty))
 
 ; (generate_opam_files true)
 
 (source
  (github MrBigoudi/PetitCCompiler))
+
 
 ; (authors "Author Name")
 
