@@ -9,7 +9,7 @@ shopt -s nullglob
 # script de test pour le projet de compilation
 
 option=$1
-compilo=$2
+compilo=${BASE_DIR}/../$2
 score=0
 max=0
 bonus=0
@@ -271,6 +271,15 @@ case $option in
     "-2" )
         partie2;;
     "-3" )
+        partie3;;
+    "-v1" )
+        verbose=1
+        partie1;;
+    "-v2" )
+        verbose=1
+        partie2;;
+    "-v3" )
+        verbose=1
         partie3;;
     "-1b" )
 	bonus=1;
