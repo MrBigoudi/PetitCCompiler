@@ -38,7 +38,7 @@ compiler: clean
 
 
 ## Build the compiler and run the tests : use TEST_FLAGS=-<option> to chose which test to run
-tests: main
+tests: compiler
 	@echo -e "\n********** Running tests **********\n"
 	@./$(TEST_FOLDER)/$(TEST) $(TEST_FLAGS) $(COMPILER)
 
