@@ -40,23 +40,25 @@ let () =
   let c = open_in file in
   let lb = Lexing.from_channel c in
     try
-        begin
-          while true do 
-              ignore(Parser.file Lexer.token lb);
-          done;
-          close_in c;
-          if !parse_only 
-            then exit 0
-            else failwith "Typage"
-        end
+      begin
+        ignore(Parser.file Lexer.token lb);
+        close_in c;
+        if !parse_only 
+          then exit 0
+          else failwith "Typage"
+      end
     with
-      | Lexer.Lexing_error s ->
+      | Lexer.Lexing_error(s,token) ->
         report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
-        Ocolor_format.eprintf "@{<red>Lexical error @}: %s@." s;
+        if(token<>"")
+          then 
+            Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s -> @{<blue>%s @}@." s token
+          else
+            Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s@." s;
         exit 1
       | Parser.Error ->
         report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
-        Ocolor_format.eprintf "syntax error @.";
+        Ocolor_format.eprintf "\tsyntax error @.";
         exit 1
       | e ->
         Ocolor_format.eprintf "Anomaly: %s\n@." (Printexc.to_string e);

@@ -3,5 +3,6 @@
 #include <stdlib.h>
 
 int main(){
-    return 6666666666666666666666;
+    /*
+    return 0;
 }
