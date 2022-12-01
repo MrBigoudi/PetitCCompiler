@@ -85,33 +85,38 @@ rule token = parse
     | space+ { token lexbuf }
     
     (* manages operations *)
-    | "="    { ASSIGN }
-    | "&"    { AMP }
-    (* logical operations *)
+    | "["    { LBRA }
+    | "]"    { RBRA }
+
     | "!"    { NOT }
-    | "||"   { OR }
-    | "&&"   { AND }
-    | "=="   { EQUAL }
-    | "!="   { NOT_EQUAL }
+    | "++"   { INCR }
+    | "--"   { DECR }
+    | "&"    { AMP }
+
+    | "*"    { TIMES }
+    | "/"    { DIV }
+    | "%"    { MOD }
+    | "-"    { MINUS }
+    | "+"    { PLUS }
+
     | "<"    { LESS_THAN }
     | "<="   { LESS_EQUAL }
     | ">"    { GREATER_THAN }
     | ">="   { GREATER_EQUAL }
-    (* arithmetical operations *)
-    | "+"    { PLUS }
-    | "-"    { MINUS }
-    | "*"    { TIMES }
-    | "/"    { DIV }
-    | "%"    { MOD }
-    | "++"   { INCR }
-    | "--"   { DECR }
+
+    | "!="   { NOT_EQUAL }
+    | "=="   { EQUAL }
+
+    | "||"   { OR }
+    | "&&"   { AND }
+
+    | "="    { ASSIGN }
+
     (* manages syntax tokens *)
     | "{"    { BEG }
     | "}"    { END }
     | "("    { LPAR }
     | ")"    { RPAR }
-    | "["    { LBRA }
-    | "]"    { RBRA }
     | ","    { COMMA }
     | ";"    { SEMI_COLON }
 

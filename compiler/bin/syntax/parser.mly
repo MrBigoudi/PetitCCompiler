@@ -123,7 +123,7 @@ decl_instr:
 ;
 
 ass_var:
-  EQUAL e = expr { e }
+  ASSIGN e = expr { e }
 
 decl_var:
   ty = typ id = IDENT e = ass_var? { Dvar(ty, id, e) }

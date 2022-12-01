@@ -1,9 +1,5 @@
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 
-int main(){
-    int a = (1+2)//test
-        *3;
-    return 'a';
-}
+int main() { int x='a'; }
