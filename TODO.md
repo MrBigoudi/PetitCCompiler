@@ -18,5 +18,6 @@
 - [ ] Le typage doit renvoyer un AST typé (arbre décoré des types en plus des noeuds de l'AST originale) -> on stcoke dans l'environnement pas que les types mais aussi d'autres infos.
 - [ ] Les expressions ne modifient pas l'environnement
 - [ ] Gérer les différents environnements pour les différents blocs 
+- [ ] Les messages d'erreur doivent être modifiés en fonction du type rencontré : pas juste un failwith !
 
 # Generation de code
