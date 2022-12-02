@@ -43,7 +43,7 @@ and tinstr = {
 }
 
 (** Description of tinstr *)
-and tdesci
+and tdesci = 
   | TIempt 
   | TIexpr of texpression
   | TIif of texpression * tinstr * tinstr
