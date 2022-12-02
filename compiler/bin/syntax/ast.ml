@@ -1,77 +1,81 @@
-(* petitC Abstract Syntax Tree *)
+(** Abstract Syntax Tree for the petitC Compiler *)
+
+(** Identifiers *)
 type ident = string
 
+(** Constants *)
+type const = 
+  | Int of int
+  | True
+  | False
+  | Null
 
-and decl_fct =
-  | DFct of ctype * ident * param list * block
-
-
-and cfile =
-  | CFinclude of decl_fct list
-
-
-and ctype =
-  | Tvoid
-  | Tint
+(** Possible types *)
+type typ = 
+  | Tint 
   | Tbool
-  | Tptr of ctype
+  | Tvoid
+  | Tptr of typ
 
+(* *NULL is possible but warning from gcc*)
+(** Unary operators *)
+type unop = Unot | Ustar | Uamp | Uincr_l | Udecr_l | Uincr_r | Udecr_r | Uplus | Uminus
 
-and param =
-  | PIdnt of ctype * ident
+(* comparaison between a ptr and an int is possible, but warning from gcc *)
+(** Arithmetical operations *)
+type arith_binop = Badd | Bsub | Bmul | Bdiv | Bmod
+(** Logical operations *)
+type logic_binop = Beq | Bneq | Blt | Ble | Bgt | Bge
+(** And and Or operations *)
+type andor_binop = Band | Bor
 
+(** Binary operations *)
+type binop = Arith of arith_binop | Logic of logic_binop | AndOr of andor_binop
 
-(* and constant =
-  | Cint of int
-  | Cbool of bool
-  | Cnull *)
+(** Function parameters *)
+type param = Param of typ * ident
 
+(** Expressions *)
+type expression = {
+  desc: desc;
+  loc: Lexing.position * Lexing.position
+}
 
-and unop =
-  | Uamp   (* & *)
-  | Ustar  (* * *)
-  | Unot   (* ! *)
+(** Description of expressions *)
+and desc =
+  | Econst of const 
+  | Evar of ident
+  | Eunop of unop * expression
+  | Ebinop of binop * expression * expression
+  | Eassign of expression * expression
+  | Ecall of ident * expression list
+  | Esizeof of typ (* maybe adding primitives *)
 
+(** Variable declarations *)
+type dvar = Dvar of typ * ident * expression option
 
-and expr =
-  | Econst of int (*constant*)
-  | Eident of ident
-  (* | Eptr of *)
-  | Eassign of expr * expr
-  | Ecall of ident * expr list
-  | Ebinop of binop * expr * expr
-  | Eunop of unop * expr 
-  (* | Esize of  *)
+(** Instruction declarations *)
+and dinstr = 
+  | DinstrVar of dvar
+  | Dinstr of instr
 
+(** Function declarations *)
+and dfct = Dfct of typ * ident * param list * block
 
-and binop =
-  | Badd | Bsub | Bmul | Bdiv | Bmod    (* + - * / % *)
-  | Beq | Bneq | Blt | Ble | Bgt | Bge  (* == != < <= > >= *)
-  | Band | Bor                          (* && || *)
+(** Instruction blocks *)
+and block = Block of dinstr list
 
-
+(** Instructions *)
 and instr =
-  | Iempt
-  | Iexpr of expr
-  | Iif of expr * instr * instr
-  | Iwhile of expr * instr
-  | Ifor of decl_var option * expr option * expr list * instr
+  | Iempt 
+  | Iexpr of expression
+  | Iif of expression * instr * instr
+  | Iwhile of expression * instr
+  | Ifor of dvar option * expression option * expression list * instr
   | Iblock of block
-  | Iret of expr option
-  | Ibrk
+  | Iret of expression option
+  | Ibreak 
   | Icontinue
 
-
-
-and decl_instr =
-  | DIvar of decl_var
-  | DInstr of instr
-  (* option Dfct of decl_fct *)
-
-
-and block =
-  | Blck of decl_instr list
-
-
-and decl_var =
-  | DVar of ctype * ident * expr option
+(** File inclusions *)
+type fileInclude = FileInclude of dfct list

@@ -1,16 +1,14 @@
-(* Lexer for petitC *)
+(** Lexer for the petitC Compiler *)
 
 {
     open Lexing
     open Parser
+    (* open Format *)
 
-    (* exception for lexing errors *)
-    exception Lexing_error of string
+    (** Exception for lexing errors *)
+    exception Lexing_error of string * string
 
-    (* note Prof : penser à appeler la fonction Lexing.new_line
-        à chaque retour chariot (caractère '\n') *)
-
-    (* table mapping keywords to tokens *)
+    (** Table mapping keywords to tokens *)
     let kwd_table =
     [
         "bool", BOOL;
@@ -29,7 +27,7 @@
         "while", WHILE;
     ]
 
-    (* initiate the hash table + getter *)
+    (** Initiate the hash table and the getters *)
     let manage_kw =
         (* initiate the hash map *)
         let h = Hashtbl.create 32 in
@@ -40,80 +38,108 @@
             (* if not a keyword return an ident *)
             try Hashtbl.find h key with _ -> IDENT key
 
+    (** Handle the error message
+        val error_handler : string -> string -> unit *)
+    let error_handler error_msg token =
+        raise( Lexing_error (error_msg, token))
+
+
+    (** Raise an error if an integer is not valid
+        val check_interger : string -> unit *)
+    let check_integer integer =
+        try ignore(Int32.of_string integer) 
+            with _ -> (error_handler "not a valid integer" integer)
+
 }
 
-(* white spaces *)
+(** White spaces *)
 let space = [' ' '\t' '\r']
 
-(* letters *)
-let alpha = ['a'-'A' 'z'-'Z']
+(** Letters *)
+let alpha = ['a'-'z' 'A'-'Z']
 
-(* digits *)
+(** Digits *)
 let digit = [ '0'-'9']
 
-(* identifiers *)
+(** Identifiers *)
 let ident = (alpha | '_')(alpha | digit | '_')*
 
-(* chars *)
-let character = [' '-'&'  '('-'['  ']'-'~'  '\\'  '\''  '\n'  '\t'  '\r'] (* without ' and \ *)
+(** Chars *)
+let character = [' '-'&'  '('-'['  ']'-'~'  '\n'  '\t'  '\r'] (* without ' and \ *)
 
-(* integers *)
-let integer = '0' | (['1'-'9']digit*) | ('\''(character)'\'')
+(** Integers *)
+let integer = '0' | (['1'-'9']digit*) | '\''(character)'\''
 
-(* preprocessing *)
+(** Preprocessing *)
 let include = "#include"space+'<'(character # '>')*">\n"
 
-(* identifies tokens *)
+(** Identifies tokens *)
 rule token = parse
     (* manage comments *)
-    | "//" [^ '\n']* '\n'
-    | "//" [^ '\n']* eof
-    | "/*"   { comment lexbuf }
+    | "//" [^ '\n']* { new_line lexbuf; token lexbuf }
+    | "//" [^ '\n']* eof { EOF }
+    | "/*" { comment lexbuf }
     
     (* manage white spaces *)
     | '\n'   { new_line lexbuf; token lexbuf }
     | space+ { token lexbuf }
     
     (* manages operations *)
-    | "="    { ASSIGN }
-    | "&"    { AMP }
-    (* logical operations *)
+    | "["    { LBRA }
+    | "]"    { RBRA }
+
     | "!"    { NOT }
-    | "||"   { OR }
-    | "&&"   { AND }
-    | "=="   { EQUAL }
-    | "!="   { NOT_EQUAL }
+    | "++"   { INCR }
+    | "--"   { DECR }
+    | "&"    { AMP }
+
+    | "*"    { TIMES }
+    | "/"    { DIV }
+    | "%"    { MOD }
+    | "-"    { MINUS }
+    | "+"    { PLUS }
+
     | "<"    { LESS_THAN }
     | "<="   { LESS_EQUAL }
     | ">"    { GREATER_THAN }
     | ">="   { GREATER_EQUAL }
-    (* arithmetical operations *)
-    | "+"    { PLUS }
-    | "-"    { MINUS }
-    | "*"    { TIMES }
-    | "/"    { DIV }
-    | "%"    { MOD }
-    | "++"   { INCR }
-    | "--"   { DECR }
+
+    | "!="   { NOT_EQUAL }
+    | "=="   { EQUAL }
+
+    | "||"   { OR }
+    | "&&"   { AND }
+
+    | "="    { ASSIGN }
+
     (* manages syntax tokens *)
     | "{"    { BEG }
     | "}"    { END }
     | "("    { LPAR }
     | ")"    { RPAR }
-    | "["    { LBRA }
-    | "]"    { RBRA }
     | ","    { COMMA }
     | ";"    { SEMI_COLON }
 
     (* manages includes *)
-    | include { INCLUDE }
+    | include { new_line lexbuf; INCLUDE }
+
+    (* manages chars *)
+    | "\'\\t\'"  { CST (Char.code '\t') }
+    | "\'\\\'\'" { CST (Char.code '\'') }
+    | "\'\\\\\'" { CST (Char.code '\\') }
+    | "\'\\n\'"  { CST (Char.code '\n') }
+    | "\'\\r\'"  { CST (Char.code '\r') }
+    | '\''(character)'\'' as c { CST (Char.code (String.get c 1)) }
+    | integer as s { begin check_integer s; CST (int_of_string s); end }
+
     | ident as id  { manage_kw id }
-    | integer as s { CST (int_of_string s) }
-    | eof          { EOF }
+    | eof  { EOF }
+    | _ as c { error_handler "illegal character" (String.make 1 c) }
 
 
-(* deals with comments *)
+(** Deals with comments *)
 and comment = parse
     | "*/" {token lexbuf}
+    | '\n' { new_line lexbuf; comment lexbuf }
     | _    {comment lexbuf}
-    | eof  {failwith "Unfinished comment"}
+    | eof  { error_handler "unfinished comment" "" }
