@@ -1,5 +1,8 @@
 (executable
  (name main)
- (libraries syntax)
+ (libraries syntax ocolor)
  (promote (until-clean))
  (flags ()))
+
+(documentation
+ (mld_files :standard))

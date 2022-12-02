@@ -1,5 +1,0 @@
-(executable
- (name prettyPrinterTests)
- (libraries syntax)
- (promote (until-clean))
- (flags ()))
