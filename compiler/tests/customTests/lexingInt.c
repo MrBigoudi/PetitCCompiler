@@ -1,8 +1,9 @@
-
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 int main() {
-  return 3$;
+  for(;;){
+    return 0;
+  }
 }

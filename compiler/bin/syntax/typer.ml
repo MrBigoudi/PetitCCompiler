@@ -86,11 +86,78 @@ let rec type_instr env ist t0 =
   let d, new_env = compute_type_instr env ist t0 in 
   { tdesci = d ; env = new_env }
 
+(** val compute_type_instr : typ Smap.t -> instr -> typ -> tdesci * env *)
 and compute_type_instr env ist t0 = match ist with
   | Iempt -> TIempt, env
   | Ibreak -> TIbreak, env
   | Icontinue -> TIcontinue, env
   | Iexpr e -> TIexpr(type_expr env e), env
-  | Iret None -> if tO = Tvoid then TIret(None), env else failwith "erreur : non-void function (TODO : formating)"
+  | Iret None -> if tO = Tvoid then TIret(None), env else failwith "erreur : Non-void function 'fctName' should return a value"
   | Iret Some(e) -> if equ_type t0 ((type_expr env e).typ) then TIret(Some(e)), env else failwith "erreur : Erreur bizarre"
+  | Iif(e, i1, i2) -> compute_type_if env e i1 i2 t0
+  | Iwhile(e, i) -> compute_type_while env e i t0
+  | Ifor(dvar, e, elist, i) -> compute_type_for env dvar e elist i t0
+  | Iblock(Block dinstr_list) -> compute_type_block env dinstr_list t0
 
+(** val compute_type_if : typ Smap.t -> expression -> instr -> instr -> typ -> tdesci * env *)
+and compute_type_if env e i1 i2 t0 =
+  let te = (type_expr env e) in
+    if (equ_type Tvoid (te.typ)) 
+      then failwith "erreur : Expected expression"
+    else 
+      let ti1 = (type_instr env i1 t0) in
+      let ti2 = (type_instr env i2 t0) in
+        TIif(te, ti1, ti2), env
+
+(** val compute_type_while : typ Smap.t -> expression -> instr -> typ -> tdesci * env *)
+and compute_type_while env e i t0 =
+  let te = (type_expr env e) in
+      if(equ_type Tvoid (te.typ))
+        then failwith "erreur : Expected expression"
+    else 
+      let ti = (type_instr env i t0) in TIwhile(te, ti), env
+
+
+(** val compute_type_for : typ Smap.t -> dvar -> instr -> instr -> typ -> tdesci * env *)
+and compute_type_for env dvar e elist i t0 =
+  (** val createTExprList : expression list -> texpression list -> texpression list *)
+  let rec createTExprList exprList acc = 
+    match exprList with
+    | [] -> acc
+    | e::cdr -> let texpr = (type_expr env e) in
+                  (createTExprList cdr acc@[texpr])
+  in
+  match dvar with 
+  | None -> (* d; for(;e;l) *)
+    begin
+      match e with 
+      | None -> (* for(d;;l) -> for(d;true;l) *)
+        let te = {tdesc=TEconst(True), typ=Tbool} in 
+          let te_list = (createTExprList elist []) in
+            let s = (type_instr env i t0) in
+              TIfor(None, te, te_list, s), env
+      | Some e ->
+        let te = (type_expr env e) in
+        if(equ_type Tvoid (te.typ))
+          then failwith "erreur : Statement requires expression of scalar type ('void' invalid)"
+          else
+            let te_list = (createTExprList elist []) in
+            let s = (type_instr env i t0) in
+              TIfor(None, te, te_list, s), env
+    end
+  | _ -> (* for(d;e;l) *) failwith "TODO for with dvar (maybe change in Parser ?)"
+
+(** val compute_type_block : typ Smap.t -> dinstr list -> typ -> tdesci * env *)
+and compute_type_block env di_list t0 =
+  (** val compute_type_block_instr : dinstr list -> typ Smap.t -> tdinstr list -> tdesci * env *)
+  let rec compute_type_block_instr di_list new_env tdi_list =
+    match di_list with 
+    | [] -> TIblock(TBlock(tdi_list)), env
+    | cur_di::cdr ->
+      let cur_tdi = 
+    
+
+(** val compute_type_dinstr : typ Smap.t -> dinstr -> typ -> tdesci * env *)
+and compute_type_dinstr env di t0 =
+  match di with 
+  | Dinstr(i) -> (compute_type_instr env i t0)
