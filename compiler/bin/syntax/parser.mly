@@ -54,7 +54,7 @@ file:
 decl_fct:
   ty = typ 
   id = IDENT
-  LPAR pl = param* RPAR
+  LPAR pl = separated_list(COMMA, param) RPAR
   bl = block { Dfct(ty, id, pl, bl) }
 ;
 
@@ -96,7 +96,7 @@ desc:
   | PLUS e = expr %prec uplus { Eunop(Uplus, e) }
   | MINUS e = expr %prec uminus { Eunop(Uminus, e) }
   | e1 = expr op = bin_op e2 = expr { Ebinop(op, e1, e2) }
-  | SIZEOF LPAR e = expr RPAR { Esizeof(e) }
+  | SIZEOF LPAR ty = typ RPAR { Esizeof(ty) }
   | LPAR e = expr RPAR { e.desc }
 ;
 
@@ -123,7 +123,7 @@ decl_instr:
 ;
 
 ass_var:
-  EQUAL e = expr { e }
+  ASSIGN e = expr { e }
 
 decl_var:
   ty = typ id = IDENT e = ass_var? { Dvar(ty, id, e) }

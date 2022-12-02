@@ -2,6 +2,7 @@
 
 open Format
 open Syntax
+open Lexing
 
 (** Print the compiler usage *)
 let usage = "usage: petitCCompiler [options] file.c"
@@ -26,35 +27,39 @@ let file =
   Arg.parse spec set_file usage;
   match !file with Some f -> f | None -> Arg.usage spec usage; exit 1
 
+
+let report (b,e) =
+  let l = b.pos_lnum in
+  let fc = b.pos_cnum - b.pos_bol + 1 in
+  let lc = e.pos_cnum - b.pos_bol + 1 in
+  Ocolor_format.eprintf "File \"%s\", line %d, characters %d-%d:\n" file l fc lc
+
+
 (** The main function for the compiler *)
 let () =
   let c = open_in file in
-  try
-    let lb = Lexing.from_channel c in
-      let cpt = ref 0 in
+  let lb = Lexing.from_channel c in
+    try
       begin
-        while true do 
-          begin
-            Parser.file Lexer.token lb;
-            incr cpt;
-            print_int !cpt;
-          end
-        done;
+        ignore(Parser.file Lexer.token lb);
         close_in c;
-        if !parse_only then exit 0;
-          (* Interp.file f *)
-          failwith "Typage"
+        if !parse_only 
+          then exit 0
+          else failwith "Typage"
       end
-  with
-    | Lexer.Lexing_error s ->
-	eprintf "lexical error: %s@." s;
-	exit 1
-    | Parser.Error ->
-	eprintf "syntax error@.";
-	exit 1
-    | e ->
-	eprintf "Anomaly: %s\n@." (Printexc.to_string e);
-	exit 2
-
-
-
+    with
+      | Lexer.Lexing_error(s,token) ->
+        report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
+        if(token<>"")
+          then 
+            Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s -> @{<blue>%s @}@." s token
+          else
+            Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s@." s;
+        exit 1
+      | Parser.Error ->
+        report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
+        Ocolor_format.eprintf "\tsyntax error @.";
+        exit 1
+      | e ->
+        Ocolor_format.eprintf "Anomaly: %s\n@." (Printexc.to_string e);
+        exit 2

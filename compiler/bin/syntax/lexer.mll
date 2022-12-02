@@ -3,9 +3,10 @@
 {
     open Lexing
     open Parser
+    (* open Format *)
 
     (** Exception for lexing errors *)
-    exception Lexing_error of string
+    exception Lexing_error of string * string
 
     (** Table mapping keywords to tokens *)
     let kwd_table =
@@ -37,13 +38,25 @@
             (* if not a keyword return an ident *)
             try Hashtbl.find h key with _ -> IDENT key
 
+    (** Handle the error message
+        val error_handler : string -> string -> unit *)
+    let error_handler error_msg token =
+        raise( Lexing_error (error_msg, token))
+
+
+    (** Raise an error if an integer is not valid
+        val check_interger : string -> unit *)
+    let check_integer integer =
+        try ignore(Int32.of_string integer) 
+            with _ -> (error_handler "not a valid integer" integer)
+
 }
 
 (** White spaces *)
 let space = [' ' '\t' '\r']
 
 (** Letters *)
-let alpha = ['a'-'A' 'z'-'Z']
+let alpha = ['a'-'z' 'A'-'Z']
 
 (** Digits *)
 let digit = [ '0'-'9']
@@ -52,10 +65,10 @@ let digit = [ '0'-'9']
 let ident = (alpha | '_')(alpha | digit | '_')*
 
 (** Chars *)
-let character = [' '-'&'  '('-'['  ']'-'~'  '\\'  '\''  '\n'  '\t'  '\r'] (* without ' and \ *)
+let character = [' '-'&'  '('-'['  ']'-'~'  '\n'  '\t'  '\r'] (* without ' and \ *)
 
 (** Integers *)
-let integer = '0' | (['1'-'9']digit*) | ('\''(character)'\'')
+let integer = '0' | (['1'-'9']digit*) | '\''(character)'\''
 
 (** Preprocessing *)
 let include = "#include"space+'<'(character # '>')*">\n"
@@ -65,48 +78,63 @@ rule token = parse
     (* manage comments *)
     | "//" [^ '\n']* { new_line lexbuf; token lexbuf }
     | "//" [^ '\n']* eof { EOF }
-    | "/*"   { comment lexbuf }
+    | "/*" { comment lexbuf }
     
     (* manage white spaces *)
     | '\n'   { new_line lexbuf; token lexbuf }
     | space+ { token lexbuf }
     
     (* manages operations *)
-    | "="    { ASSIGN }
-    | "&"    { AMP }
-    (* logical operations *)
+    | "["    { LBRA }
+    | "]"    { RBRA }
+
     | "!"    { NOT }
-    | "||"   { OR }
-    | "&&"   { AND }
-    | "=="   { EQUAL }
-    | "!="   { NOT_EQUAL }
+    | "++"   { INCR }
+    | "--"   { DECR }
+    | "&"    { AMP }
+
+    | "*"    { TIMES }
+    | "/"    { DIV }
+    | "%"    { MOD }
+    | "-"    { MINUS }
+    | "+"    { PLUS }
+
     | "<"    { LESS_THAN }
     | "<="   { LESS_EQUAL }
     | ">"    { GREATER_THAN }
     | ">="   { GREATER_EQUAL }
-    (* arithmetical operations *)
-    | "+"    { PLUS }
-    | "-"    { MINUS }
-    | "*"    { TIMES }
-    | "/"    { DIV }
-    | "%"    { MOD }
-    | "++"   { INCR }
-    | "--"   { DECR }
+
+    | "!="   { NOT_EQUAL }
+    | "=="   { EQUAL }
+
+    | "||"   { OR }
+    | "&&"   { AND }
+
+    | "="    { ASSIGN }
+
     (* manages syntax tokens *)
     | "{"    { BEG }
     | "}"    { END }
     | "("    { LPAR }
     | ")"    { RPAR }
-    | "["    { LBRA }
-    | "]"    { RBRA }
     | ","    { COMMA }
     | ";"    { SEMI_COLON }
 
     (* manages includes *)
     | include { new_line lexbuf; INCLUDE }
+
+    (* manages chars *)
+    | "\'\\t\'"  { CST (Char.code '\t') }
+    | "\'\\\'\'" { CST (Char.code '\'') }
+    | "\'\\\\\'" { CST (Char.code '\\') }
+    | "\'\\n\'"  { CST (Char.code '\n') }
+    | "\'\\r\'"  { CST (Char.code '\r') }
+    | '\''(character)'\'' as c { CST (Char.code (String.get c 1)) }
+    | integer as s { begin check_integer s; CST (int_of_string s); end }
+
     | ident as id  { manage_kw id }
-    | integer as s { CST (int_of_string s) }
-    | eof          { EOF }
+    | eof  { EOF }
+    | _ as c { error_handler "illegal character" (String.make 1 c) }
 
 
 (** Deals with comments *)
@@ -114,4 +142,4 @@ and comment = parse
     | "*/" {token lexbuf}
     | '\n' { new_line lexbuf; comment lexbuf }
     | _    {comment lexbuf}
-    | eof  {failwith "Unfinished comment"}
+    | eof  { error_handler "unfinished comment" "" }

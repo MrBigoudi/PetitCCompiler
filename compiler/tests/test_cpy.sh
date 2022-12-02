@@ -9,7 +9,7 @@ shopt -s nullglob
 # script de test pour le projet de compilation
 
 option=$1
-compilo=$2
+compilo=${BASE_DIR}/../$2
 score=0
 max=0
 bonus=0
@@ -272,6 +272,15 @@ case $option in
         partie2;;
     "-3" )
         partie3;;
+    "-v1" )
+        verbose=1
+        partie1;;
+    "-v2" )
+        verbose=1
+        partie2;;
+    "-v3" )
+        verbose=1
+        partie3;;
     "-1b" )
 	bonus=1;
 	partie1;;
@@ -301,6 +310,7 @@ case $option in
         echo "-v1     : tester la partie 1 (verbose)"
         echo "-v2     : tester la partie 2 (verbose)"
         echo "-v3     : tester la partie 3 (verbose)"
+        echo "-gcc    : tester avec gcc"
         echo "-all    : tout tester";;
 
 esac

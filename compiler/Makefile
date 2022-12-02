@@ -22,7 +22,7 @@ PARSER := $(SYNTAX_FOLDER)/parser.mly
 TARGET    := main.exe
 COMPILER  := petitCCompiler.exe
 TEST      := test_cpy.sh
-TEST_FLAGS := -1
+TEST_FLAGS := -v1
 
 .PHONY: all help clean tests explain main
 
@@ -38,7 +38,7 @@ compiler: clean
 
 
 ## Build the compiler and run the tests : use TEST_FLAGS=-<option> to chose which test to run
-tests: main
+tests: compiler
 	@echo -e "\n********** Running tests **********\n"
 	@./$(TEST_FOLDER)/$(TEST) $(TEST_FLAGS) $(COMPILER)
 
@@ -46,12 +46,21 @@ tests: main
 ## Test if the parser generates conflicts
 explain:
 	@echo -e "\n********** Checking parser conflicts **********\n"
-	@menhir --base /tmp/parser --dump --explain $(PARSER)
+	menhir --base /tmp/parser --dump --explain $(PARSER)
 	@cat /tmp/parser.conflicts
 
 
+## Clean tests produced files
+clean_tests:
+	@echo -e "\n********** Cleaning tests **********\n"
+ifneq ("$(wildcard $(TEST_FOLDER)/a.out)","")
+	@rm $(TEST_FOLDER)/*.o
+	@rm $(TEST_FOLDER)/*out*
+endif
+
+
 ## Delete build files and executables
-clean:
+clean: clean_tests
 	@echo -e "\n********** Cleaning project **********\n"
 	dune clean
 ifneq ("$(wildcard $(COMPILER))","")

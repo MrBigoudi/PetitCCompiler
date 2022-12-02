@@ -49,7 +49,7 @@ and desc =
   | Ebinop of binop * expression * expression
   | Eassign of expression * expression
   | Ecall of ident * expression list
-  | Esizeof of expression (* maybe adding primitives *)
+  | Esizeof of typ (* maybe adding primitives *)
 
 (** Variable declarations *)
 type dvar = Dvar of typ * ident * expression option
