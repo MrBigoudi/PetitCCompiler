@@ -26,6 +26,7 @@ type tdvar = TDvar of typ * ident * texpression option
 
 (** Instruction declarations *)
 and tdinstr = 
+  | TDinstrFct of tdfct
   | TDinstrVar of tdvar
   | TDinstr of tinstr
 

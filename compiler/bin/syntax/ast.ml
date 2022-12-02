@@ -56,6 +56,7 @@ type dvar = Dvar of typ * ident * expression option
 
 (** Instruction declarations *)
 and dinstr = 
+  | DinstrFct of dfct
   | DinstrVar of dvar
   | Dinstr of instr
 

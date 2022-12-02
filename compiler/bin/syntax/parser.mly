@@ -118,6 +118,7 @@ block:
 ;
 
 decl_instr:
+  | dfct = decl_fct { DinstrFct(dfct) }
   | dv = decl_var SEMI_COLON { DinstrVar(dv) }
   | ist = instr { Dinstr(ist) }
 ;
