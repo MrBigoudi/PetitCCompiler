@@ -1,9 +1,6 @@
 open Ast
 open Ast_typed
 
-module Smap = Map.Make(String)
-type env = typ Smap.t
-
 (* lvalue : variable ou *e1 *)
 
 (* TODO : faire les tests *)
@@ -84,5 +81,16 @@ and type_binop env op e1 e2 = let t1 = type_expr env e1 in let t2 = type_expr en
     else failwith "erreur : TODO"
   end
 
-let rec type_instr env e = 
+(** val type_expr : typ Smap.t -> instr -> typ -> tinstr *)
+let rec type_instr env ist t0 = 
+  let d, new_env = compute_type_instr env ist t0 in 
+  { tdesci = d ; env = new_env }
+
+and compute_type_instr env ist t0 = match ist with
+  | Iempt -> TIempt, env
+  | Ibreak -> TIbreak, env
+  | Icontinue -> TIcontinue, env
+  | Iexpr e -> TIexpr(type_expr env e), env
+  | Iret None -> if tO = Tvoid then TIret(None), env else failwith "erreur : non-void function (TODO : formating)"
+  | Iret Some(e) -> if equ_type t0 ((type_expr env e).typ) then TIret(Some(e)), env else failwith "erreur : Erreur bizarre"
 

@@ -2,6 +2,9 @@
 
 open Ast
 
+module Smap = Map.Make(String)
+type env = typ Smap.t
+
 (** Expressions *)
 type texpression = {
   tdesc: tdesc;
@@ -33,7 +36,13 @@ and tdfct = TDfct of typ * ident * param list * tblock
 and tblock = TBlock of tdinstr list
 
 (** Instructions *)
-and tinstr =
+and tinstr = {
+  tdesci: tdesci;
+  env: env
+}
+
+(** Description of tinstr *)
+and tdesci
   | TIempt 
   | TIexpr of texpression
   | TIif of texpression * tinstr * tinstr
