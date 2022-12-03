@@ -34,6 +34,7 @@ and compute_type_expr env e =
   | Evar var -> TEvar var, (Smap.find var env)
   | Eunop (op, e) -> type_unop env op e
   | Ebinop (op, e1, e2) -> type_binop env op e1 e2 (* addition of pointers dont work as expected, be more careful ! *)
+
   | _ -> failwith "Oops not now"
 
 and type_const const = match const with
@@ -207,4 +208,9 @@ and compute_type_dinstr_fct env fct t0 =
     (* check if name already used *)
     if (Smap.mem ident env) 
       then failwith ("erreur : Redefinition of '"^ident^"'")
-      else failwith("TODO decl func")
+      (* adding function to new env *)
+      else
+        (* test if params are of correct type *)
+        let rec test_params_type param_list t0 =
+          match param_list with
+        

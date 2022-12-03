@@ -16,6 +16,8 @@ type typ =
   | Tbool
   | Tvoid
   | Tptr of typ
+  (* type de retour * list de type pour les arguments *)
+  | Tfct of typ * typ list
 
 (* *NULL is possible but warning from gcc*)
 (** Unary operators *)

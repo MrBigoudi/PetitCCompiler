@@ -3,7 +3,9 @@
 #include <stdio.h>
 
 int main() {
+  int x;
   for(;;){
+    int x;
     return 0;
   }
 }
