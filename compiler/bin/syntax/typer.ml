@@ -245,7 +245,38 @@ and compute_type_dinstr_fct env fct t0 =
   let t_dfct, env = (compute_type_dfct env fct t0) in TDinstrFct t_dfct, env
 
 (** val compute_type_dfct : dmap -> dfct -> typ -> tdfct * dmap *)
-and compute_type_dfct env fct t0 = failwith "TODO"
+and compute_type_dfct env fct t0 = 
+  match fct with
+    Dfct (typ, ident, p_list, Block(dinstr_list)) ->
+    (* check if function name already used *)
+    if(in_new_env_dmap ident env)
+      then failwith ("erreur : Redefinition of '"^ident^"'")
+      else
+        (* getting type of all parameters and the new env with these parameters *)
+        (* val get_param_types : param list -> typ list -> ident list -> dmap -> typ list * dmap *)
+        let rec get_param_types p_list types idents env = 
+          match p_list with
+          | [] -> (types, env)
+          | p::cdr -> 
+            let (typ,id) = match p with Param(typ,id) -> (typ,id)
+              (* testing if two params have same name *)
+              in 
+                if List.mem id idents 
+                  then failwith "Redefinition of parameter 'x'"
+                  else
+                    let new_env = (add_dmap ident typ env) in
+                      (* adding params to new env *)
+                      (get_param_types cdr (types@[typ]) (idents@[ident]) new_env)
+        in let (p_types, new_env) = (get_param_types p_list [] [] env)
+          (* adding fun prototype to new env and adding all parameters to new env *)
+          in let fun_typ = Tfct(typ,p_types)
+            in let new_env =  (add_dmap ident fun_typ new_env)
+            (* checking return type of the function *)
+              in let (tdesci,_) = (compute_type_block new_env dinstr_list typ) (* t0 is now the fun return typ *)
+                in match tdesci with 
+                  | TIblock t_block -> TDfct(typ, ident, p_list, t_block), new_env
+                  | _ -> failwith "not supposed to be here ..."
+
           
 (** Type a parsed ast
     val type_ast : fileInclude -> tfileInclude *)
