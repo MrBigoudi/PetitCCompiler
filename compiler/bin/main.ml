@@ -49,9 +49,11 @@ let () =
         close_in c;
         if !parse_only then exit 0 (* parse only *)
           else 
-            let typed_ast = Typer.type_ast parsed_ast in
+            begin
+              ignore (Typer.type_ast parsed_ast);
               if !type_only then exit 0 (* type only *)
-                else failwith "todo production de code" 
+                else failwith "todo production de code"
+            end 
       end
     with
       | Lexer.Lexing_error(s,token) ->

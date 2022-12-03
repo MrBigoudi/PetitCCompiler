@@ -22,6 +22,10 @@ let handle_error err_num pos =
     | 11 -> "lvalue required as left operand of assignment"
     | 12 -> "Incompatible types for assignation"
     | 13 -> "The void shall have no size..."
+    | 14 -> "Implicit declaration of function"
+    | 15 -> "Too few arguments to function call"
+    | 16 -> "Too many arguments to function call"
+    | 17 -> "Passing expressions to parameter of incompatible type"
     (* TODO *)
     | _ -> "Unkown error"
   in raise (Typing_error(error, pos))
@@ -57,19 +61,10 @@ and compute_type_expr env e =
   | Evar var -> (type_var var env loc)
   | Eunop (op, e) -> (type_unop env op e loc)
   | Ebinop (op, e1, e2) -> (type_binop env op e1 e2 loc) (* addition of pointers dont work as expected, be more careful ! *)
-  | Eassign (e1, e2) -> 
-      let te1 = type_expr env e1 in
-      let te2 = type_expr env e2 in
-      if (is_lvalue e1) && (equ_type te1.typ te2.typ) then TEassign(te1, te2), te1.typ else 
-        (if (is_lvalue e1) then (handle_error 11 loc) else (handle_error 12 loc))
-  | Ecall (id, e_list) -> 
-      failwith "TODO"
+  | Eassign (e1, e2) -> (type_assign env e1 e2 loc)
+  | Ecall (id, e_list) -> (type_call env id e_list loc)
   | Esizeof ty -> if equ_type ty Tvoid then (handle_error 13 loc) else TEsizeof(ty), Tint
 
-(** val type_var : ident -> dmap -> expression.loc -> tdesc * typ *)
-and type_var var env loc = 
-  try TEvar var, (search_dmap var env)
-    with _ -> (handle_error 9 loc)
 
 (** val type_const : const -> tdesc * typ *)
 and type_const const = match const with
@@ -77,6 +72,13 @@ and type_const const = match const with
   | True -> TEconst(True), Tbool
   | False -> TEconst(False), Tbool
   | Null -> TEconst(Null), Tptr(Tvoid)
+
+
+(** val type_var : ident -> dmap -> expression.loc -> tdesc * typ *)
+and type_var var env loc = 
+  try TEvar var, (search_dmap var env)
+    with _ -> (handle_error 9 loc)
+
 
 (** val type_unop : dmap -> unop -> expression -> expression.loc -> tdesc * typ *)
 and type_unop env op e loc = 
@@ -94,6 +96,7 @@ and type_unop env op e loc =
     | Uplus as op-> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 7 loc)
     | Uminus as op -> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 8 loc)
         
+
 (** val type_binop : dmap -> unop -> expression -> expression -> expression.loc -> tdesc * typ *)
 and type_binop env op e1 e2 loc = 
   let t1 = (type_expr env e1) in
@@ -133,6 +136,43 @@ and type_binop env op e1 e2 loc =
       then TEbinop(op, t1, t2), Tint 
       else (handle_error 10 loc)
     end
+
+
+(** val type_assign : dmap -> expression -> expression -> expression.loc -> tdesc * typ *)
+and type_assign env e1 e2 loc =
+  let te1 = type_expr env e1 in
+  let te2 = type_expr env e2 in
+  if (is_lvalue e1) && (equ_type te1.typ te2.typ) then TEassign(te1, te2), te1.typ else 
+    (if (is_lvalue e1) then (handle_error 11 loc) else (handle_error 12 loc))
+
+
+(** val type_call : dmap -> ident -> expression list -> expression.loc -> tdesc * typ *)
+and type_call env id e_list loc = 
+  (* test if function exists in env *)
+  let fct_typ = begin
+    try search_dmap id env with _ -> (handle_error 14 loc);
+  end in
+    match fct_typ with 
+      | Tfct(ret_typ, param_typ) ->
+        (* test if given parameters are correct *)
+        let rec test_param_fun_call e_list param_typ_list te_list =
+          match (e_list,param_typ_list) with
+          | ([],[]) -> TEcall(id, te_list), ret_typ
+          | ([],_) -> (handle_error 15 loc) (* not enough params *)
+          | (_,[]) -> (handle_error 16 loc) (* too many params *)
+          | (e::e_cdr), (p::p_cdr) ->
+            let te = type_expr env e in
+              (* test if compatible type *) 
+              if not (equ_type te.typ p) 
+                then (handle_error 17 e.loc) (* incompatible types *)
+                (* recursive call *)
+                else (test_param_fun_call e_cdr p_cdr (te_list@[te]))
+          in (test_param_fun_call e_list param_typ [])
+      | _ -> assert false
+
+
+
+
 
 (** val type_instr : dmap -> instr -> typ -> tinstr *)
 let rec type_instr env ist t0 = 
