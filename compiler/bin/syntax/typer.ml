@@ -19,6 +19,9 @@ let handle_error err_num pos =
     | 8 -> "Wrong type argument to unary minus"
     | 9 -> "Use of undeclared identifier"
     | 10 -> "Invalid operands to binary expression"
+    | 11 -> "lvalue required as left operand of assignment"
+    | 12 -> "Incompatible types for assignation"
+    | 13 -> "The void shall have no size..."
     (* TODO *)
     | _ -> "Unkown error"
   in raise (Typing_error(error, pos))
@@ -54,9 +57,14 @@ and compute_type_expr env e =
   | Evar var -> (type_var var env loc)
   | Eunop (op, e) -> (type_unop env op e loc)
   | Ebinop (op, e1, e2) -> (type_binop env op e1 e2 loc) (* addition of pointers dont work as expected, be more careful ! *)
-  | Eassign (e1, e2) -> failwith "TODO"
-  | Ecall (id, e_list) -> failwith "TODO"
-  | Esizeof typ -> failwith "TODO"
+  | Eassign (e1, e2) -> 
+      let te1 = type_expr env e1 in
+      let te2 = type_expr env e2 in
+      if (is_lvalue e1) && (equ_type te1.typ te2.typ) then TEassign(te1, te2), te1.typ else 
+        (if (is_lvalue e1) then (handle_error 11 loc) else (handle_error 12 loc))
+  | Ecall (id, e_list) -> 
+      failwith "TODO"
+  | Esizeof ty -> if equ_type ty Tvoid then (handle_error 13 loc) else TEsizeof(ty), Tint
 
 (** val type_var : ident -> dmap -> expression.loc -> tdesc * typ *)
 and type_var var env loc = 
