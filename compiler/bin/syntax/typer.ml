@@ -8,12 +8,12 @@ exception Typing_error of string * loc
     val dummy_loc -> loc *)
 let dummy_loc = Lexing.dummy_pos, Lexing.dummy_pos
 
-
 (** handle a typing error 
     val handle_error : int -> loc -> unit *)
 let handle_error err_num pos =
   let error = 
     match err_num with
+    | 0 -> "Undefined reference to `main'"
     | 1 -> "Invalid use of void expression"
     | 2 -> "Void value not ignored as it ought to be"
     | 3 -> "Invalid type of unary '*'"
@@ -39,9 +39,36 @@ let handle_error err_num pos =
     | 23 -> "Redefinition of identifier"
     | 24 -> "Redefinition of parameter"
     | 25 -> "Incompatible conversion"
+    | 26 -> "Can't redefine stdandard function" (* made up error message *)
+    | 27 -> "Main function should not take arguments" (* made up error message *)
+    | 28 -> "Main function should return an int" (* made up error message *)
     (* TODO *)
     | _ -> "Unkown error"
   in raise (Typing_error(error, pos))
+
+
+(** check if there is a main function in the file *)
+let main_is_present = ref false
+
+(** val check_main_in_env : dmap -> typ -> ident -> param list -> unit *)
+let check_main_in_env env typ id param_list =
+  print_string id;
+  if not (String.equal id "main") then () 
+  else
+    try
+      let _ = search_dmap id env
+        in match typ with 
+        | Tint -> 
+          begin
+            match param_list with 
+              | [] -> (main_is_present := true)
+              | _ -> (handle_error 27 dummy_loc)
+          end
+        | _ -> (handle_error 28 dummy_loc)
+    with _ -> ()
+
+
+
 
 let equ_type ty1 ty2 = match ty1, ty2 with
   | t1, t2 when t1 = t2 -> true
@@ -344,12 +371,19 @@ and compute_type_dfct env fct t0 =
 and type_ast parsed_ast =
 	(* create new env *)
 	let (env:dmap) = { old_env=Smap.empty; new_env=Smap.empty} in
-	let dfct_list = match parsed_ast with FileInclude(l) -> l in
-  	let rec compute_type_dfct_list dfct_list new_env tdfct_list =
-			match dfct_list with 
-			| [] -> TFileInclude(tdfct_list)
-			| cur_dfct::cdr -> 
-				let typ = match cur_dfct with Dfct(typ,_,_,_) -> typ in
-					let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct typ in
-					(compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
-		in (compute_type_dfct_list dfct_list env [])
+  (* add void* malloc(int n) and int putchar(int c) in the env *)
+  let env = add_dmap "malloc" (Tfct(Tptr(Tvoid), [Tint])) env in
+  let env = add_dmap "putchar" (Tfct(Tint, [Tint]))  env in
+    let dfct_list = match parsed_ast with FileInclude(l) -> l in
+      let rec compute_type_dfct_list dfct_list new_env tdfct_list =
+        match dfct_list with 
+        | [] -> TFileInclude(tdfct_list)
+        | cur_dfct::cdr -> 
+          let (typ,ident,param_list) = match cur_dfct with Dfct(typ,ident,param_list,_) -> (typ,ident,param_list) in
+            (check_main_in_env new_env typ ident param_list);
+            let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct typ in
+            (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
+      in 
+        let typed_ast = (compute_type_dfct_list dfct_list env []) in
+          if not (!main_is_present) then (handle_error 0 dummy_loc)
+          else typed_ast
