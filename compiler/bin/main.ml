@@ -55,13 +55,13 @@ let () =
       end
     with
       | Lexer.Lexing_error(s,token) ->
-        report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
-        if(token<>"")
-          then 
-            Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s -> @{<blue>%s @}@." s token
-          else
-            Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s@." s;
-        exit 1
+          report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
+          if(token<>"")
+            then 
+              Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s -> @{<blue>%s @}@." s token
+            else
+              Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s@." s;
+          exit 1
       | Parser.Error ->
           report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
           Ocolor_format.eprintf "\t@{<red>Syntax error @}@.";
