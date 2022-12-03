@@ -60,7 +60,7 @@ You can use several options for the compiler:
 | &lt;option&gt;  | description |
 | --------------: | ----------: |
 | --parse-only    | The compiler will stop after parsing the input file |
-| --type-only     | The compiler will stop after parsing the input file and checking it sematically |
+| --type-only     | The compiler will stop after parsing the input file and checking it semantically |
 
 ```sh
 $ ./petitCCompiler <option> <inputFile>.c
