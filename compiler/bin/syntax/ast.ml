@@ -3,6 +3,9 @@
 (** Identifiers *)
 type ident = string
 
+(** Localisation in file *)
+type loc = Lexing.position * Lexing.position 
+
 (** Constants *)
 type const = 
   | Int of int
@@ -40,7 +43,7 @@ type param = Param of typ * ident
 (** Expressions *)
 type expression = {
   desc: desc;
-  loc: Lexing.position * Lexing.position
+  loc: loc
 }
 
 (** Description of expressions *)

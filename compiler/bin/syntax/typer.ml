@@ -2,11 +2,11 @@ open Ast
 open Ast_typed
 
 (** Exception for typing errors *)
-exception Typing_error of string
+exception Typing_error of string * loc
 
 (** handle a typing error 
     val handle_error : int -> unit *)
-let handle_error err_num =
+let handle_error err_num pos =
   let error = 
     match err_num with
     | 1 -> "Invalid use of void expression"
@@ -19,7 +19,7 @@ let handle_error err_num =
     | 8 -> "Wrong type argument to unary minus"
     (* TODO *)
     | _ -> "Unkown error"
-  in raise (Typing_error error)
+  in raise (Typing_error(error, pos))
 
 let equ_type ty1 ty2 = match ty1, ty2 with
   | t1, t2 when t1 = t2 -> true
@@ -62,16 +62,16 @@ and type_const const = match const with
 
 and type_unop env op e = let te = type_expr env e in let t = te.typ in
   match op with
-  | Unot as op -> if t = Tvoid then (handle_error 1) else TEunop(op, type_expr env e), Tint
-  | Ustar as op -> if t = Tvoid then (handle_error 2)
-      else (match t with Tptr(ty) -> TEunop(op, type_expr env e), ty | _ -> (handle_error 3))
-  | Uamp as op -> if is_lvalue e then TEunop(op, type_expr env e), Tptr(t) else (handle_error 4)
-  | Uincr_l as op -> if is_lvalue e then TEunop(op, type_expr env e), t else (handle_error 5)
-  | Uincr_r as op -> if is_lvalue e then TEunop(op, type_expr env e), t else (handle_error 5)
-  | Udecr_l as op -> if is_lvalue e then TEunop(op, type_expr env e), t else (handle_error 6)
-  | Udecr_r as op -> if is_lvalue e then TEunop(op, type_expr env e), t else (handle_error 6)
-  | Uplus as op-> if equ_type t Tint then TEunop(op, type_expr env e), Tint else (handle_error 7)
-  | Uminus as op -> if equ_type t Tint then TEunop(op, type_expr env e), Tint else (handle_error 8)
+  | Unot as op -> if t = Tvoid then (handle_error 1 e.loc) else TEunop(op, te), Tint
+  | Ustar as op -> if t = Tvoid then (handle_error 2 e.loc)
+      else (match t with Tptr(ty) -> TEunop(op, te), ty | _ -> (handle_error 3 e.loc))
+  | Uamp as op -> if is_lvalue e then TEunop(op, te), Tptr(t) else (handle_error 4 e.loc)
+  | Uincr_l as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 5 e.loc)
+  | Uincr_r as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 5 e.loc)
+  | Udecr_l as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 6 e.loc)
+  | Udecr_r as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 6 e.loc)
+  | Uplus as op-> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 7 e.loc)
+  | Uminus as op -> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 8 e.loc)
       
 and type_binop env op e1 e2 = 
   let t1 = (type_expr env e1) in

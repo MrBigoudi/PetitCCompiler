@@ -66,7 +66,8 @@ let () =
           report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
           Ocolor_format.eprintf "\t@{<red>Syntax error @}@.";
           exit 1
-      | Typer.Typing_error(s) ->
+      | Typer.Typing_error(s, loc_err) ->
+          report loc_err;
           Ocolor_format.eprintf "\t@{<red>Typing error @}: %s@." s;
           exit 1
       | e ->
