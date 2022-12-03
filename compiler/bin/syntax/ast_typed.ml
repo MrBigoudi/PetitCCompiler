@@ -5,7 +5,7 @@ open Ast
 module Smap = Map.Make(String)
 type env = typ Smap.t
 
-exception = Environnement_error of string
+exception Environnement_error of string
 
 (** double maps : using old and new environnements for blocks *)
 type dmap = { old_env : env ; new_env : env}
@@ -15,8 +15,8 @@ let search_dmap id doub_map two_envs =
   let oenv = doub_map.old_env in
   let nenv = doub_map.new_env in
   match Smap.find_opt id nenv, Smap.find_opt id oenv with
-    | None, None -> raise Environnement_error "no id found"
-    | None, Some(t) -> if two_envs then t else raise Environnement_error "no id found"
+    | None, None -> raise (Environnement_error("no id found"))
+    | None, Some(t) -> if two_envs then t else raise (Environnement_error("no id found"))
     | Some(t), None -> t
     | Some(t1), Some(t2) -> t1
 
@@ -28,13 +28,13 @@ let in_new_env id doub_map =
 (* val add_dmap : ident -> typ -> dmap -> dmap ->  *)
 let add_dmap id ty doub_map =
   let nenv = doub_map.new_env in
-  if Smap.mem id nenv then raise Environnement_error "id already existing" else { old_env = dmap.old_env ; new_env = (Smap.add id typ nenv) }
+  if Smap.mem id nenv then raise (Environnement_error("id already existing")) else { old_env = doub_map.old_env ; new_env = (Smap.add id ty nenv) }
 
 (* val union_dmap : dmap -> env *)
 let union_dmap doub_map =
   let oenv = doub_map.old_env in
   let nenv = doub_map.new_env in
-  let union_fun = fun (_, old_id, new_id) -> Some(new_id)
+  let union_fun id old_val new_val = Some(new_val) in
   Smap.union union_fun oenv nenv
 
 (** Expressions *)
