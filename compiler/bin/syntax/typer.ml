@@ -70,7 +70,6 @@ let check_main_in_env env typ id param_list =
 
 
 
-
 let equ_type ty1 ty2 = match ty1, ty2 with
   | t1, t2 when t1 = t2 -> true
   | Tint, Tbool -> true
@@ -337,8 +336,10 @@ and compute_type_dinstr_fct env fct t0 =
 and compute_type_dfct env fct t0 = 
   match fct with
     Dfct (typ, ident, p_list, Block(dinstr_list)) ->
+    (* check if standard function *)
+    if (String.equal ident "malloc" || String.equal ident "putchar") then (handle_error 26 dummy_loc)
     (* check if function name already used *)
-    if(in_new_env_dmap ident env)
+    else if(in_new_env_dmap ident env)
       then (handle_error 22 dummy_loc)
       else
         (* getting type of all parameters and the new env with these parameters *)
