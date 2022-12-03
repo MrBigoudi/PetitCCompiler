@@ -30,3 +30,4 @@ _opam/
 
 *.exe
 *.conflicts
+*.out
