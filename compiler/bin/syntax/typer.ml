@@ -4,8 +4,13 @@ open Ast_typed
 (** Exception for typing errors *)
 exception Typing_error of string * loc
 
+(** dummy location for temporary tests 
+    val dummy_loc -> loc *)
+let dummy_loc = Lexing.dummy_pos, Lexing.dummy_pos
+
+
 (** handle a typing error 
-    val handle_error : int -> unit *)
+    val handle_error : int -> loc -> unit *)
 let handle_error err_num pos =
   let error = 
     match err_num with
@@ -26,6 +31,14 @@ let handle_error err_num pos =
     | 15 -> "Too few arguments to function call"
     | 16 -> "Too many arguments to function call"
     | 17 -> "Passing expressions to parameter of incompatible type"
+    | 18 -> "Non-void function should return a value"
+    | 19 -> "This function does not return a value of the correct type" (* made up error message *)
+    | 20 -> "Expected expression"
+    | 21 -> "Statement requires expression of scalar type"
+    | 22 -> "Variable has incomplete type"
+    | 23 -> "Redefinition of identifier"
+    | 24 -> "Redefinition of parameter"
+    | 25 -> "Incompatible conversion"
     (* TODO *)
     | _ -> "Unkown error"
   in raise (Typing_error(error, pos))
@@ -187,11 +200,11 @@ and compute_type_instr (env:dmap) ist t0 = match ist with
   | Iexpr e -> TIexpr (type_expr env e), env
   | Iret None -> if t0 = Tvoid 
                     then TIret(None), env 
-                    else failwith "erreur : Non-void function 'fctName' should return a value"
+                    else (handle_error 18 dummy_loc)
   | Iret Some(e) -> let texp = (type_expr env e) in
                     if (equ_type t0 (texp.typ))
                       then TIret(Some(texp)), env 
-                      else failwith "erreur : Erreur bizarre"
+                      else (handle_error 19 dummy_loc)
   | Iif(e, i1, i2) -> compute_type_if env e i1 i2 t0
   | Iwhile(e, i) -> compute_type_while env e i t0
   | Ifor(dvar, e, elist, i) -> compute_type_for env dvar e elist i t0
@@ -201,7 +214,7 @@ and compute_type_instr (env:dmap) ist t0 = match ist with
 and compute_type_if env e i1 i2 t0 =
   let te = (type_expr env e) in
     if (equ_type Tvoid (te.typ)) 
-      then failwith "erreur : Expected expression"
+      then (handle_error 20 dummy_loc)
     else 
       let ti1 = (type_instr env i1 t0) in
       let ti2 = (type_instr env i2 t0) in
@@ -211,7 +224,7 @@ and compute_type_if env e i1 i2 t0 =
 and compute_type_while env e i t0 =
   let te = (type_expr env e) in
       if(equ_type Tvoid (te.typ))
-        then failwith "erreur : Expected expression"
+        then (handle_error 20 dummy_loc)
     else 
       let ti = (type_instr env i t0) in TIwhile(te, ti), env
 
@@ -237,7 +250,7 @@ and compute_type_for env dvar e elist i t0 =
       | Some e ->
         let te = (type_expr env e) in
         if(equ_type Tvoid (te.typ))
-          then failwith "erreur : Statement requires expression of scalar type ('void' invalid)"
+          then (handle_error 21 dummy_loc)
           else
             let te_list = (createTExprList elist []) in
             let s = (type_instr env i t0) in
@@ -271,11 +284,11 @@ and compute_type_dinstr_var env v t0 =
   match v with Dvar(typ, ident, exp) ->
     (* check if variable is of type void *)
     if (equ_type typ Tvoid) 
-      then failwith ("erreur : Variable '"^ident^"' has incomplete type 'void' ") 
+      then (handle_error 22 dummy_loc) 
       else
       (* check if name already used *)
       if (in_new_env_dmap ident env) 
-        then failwith ("erreur : Redefinition of '"^ident^"'")
+        then (handle_error 23 dummy_loc) 
         (* adding variable to new env *)
         else 
           match exp with 
@@ -284,7 +297,7 @@ and compute_type_dinstr_var env v t0 =
             let (e_tdesc, e_typ) = (compute_type_expr env e) in
               (* typ x = e; -> test if 'typ' equivalent to type of 'e'*)
               if not (equ_type e_typ typ) 
-                then failwith ("erreur : Incompatible conversion initializing 'typ' with an expression of type 'te.typ' ")
+                then (handle_error 25 dummy_loc)
                 else TDinstrVar(TDvar(typ, ident, Some({tdesc=e_tdesc; typ=e_typ}))), (add_dmap ident typ env)
 
 
@@ -298,7 +311,7 @@ and compute_type_dfct env fct t0 =
     Dfct (typ, ident, p_list, Block(dinstr_list)) ->
     (* check if function name already used *)
     if(in_new_env_dmap ident env)
-      then failwith ("erreur : Redefinition of '"^ident^"'")
+      then (handle_error 22 dummy_loc)
       else
         (* getting type of all parameters and the new env with these parameters *)
         (* val get_param_types : param list -> typ list -> ident list -> dmap -> typ list * dmap *)
@@ -310,7 +323,7 @@ and compute_type_dfct env fct t0 =
               (* testing if two params have same name *)
               in 
                 if List.mem id idents 
-                  then failwith "Redefinition of parameter 'x'"
+                  then (handle_error 24 dummy_loc)
                   else
                     let new_env = (add_dmap ident typ env) in
                       (* adding params to new env *)
@@ -323,7 +336,7 @@ and compute_type_dfct env fct t0 =
               in let (tdesci,_) = (compute_type_block new_env dinstr_list typ) (* t0 is now the fun return typ *)
                 in match tdesci with 
                   | TIblock t_block -> TDfct(typ, ident, p_list, t_block), new_env
-                  | _ -> failwith "not supposed to be here ..."
+                  | _ -> assert false (* should not end up here *)
 
           
 (** Type a parsed ast
