@@ -1,9 +1,26 @@
 open Ast
 open Ast_typed
 
-(* lvalue : variable ou *e1 *)
+(** Exception for typing errors *)
+exception Typing_error of string
 
-(* TODO : faire les tests *)
+(** handle a typing error 
+    val handle_error : int -> unit *)
+let handle_error err_num =
+  let error = 
+    match err_num with
+    | 1 -> "Invalid use of void expression"
+    | 2 -> "Void value not ignored as it ought to be"
+    | 3 -> "Invalid type of unary '*'"
+    | 4 -> "Lvalue required as unary '&' operand"
+    | 5 -> "Lvalue required as increment operand"
+    | 6 -> "Lvalue required as decrement operand"
+    | 7 -> "Wrong type argument to unary plus"
+    | 8 -> "Wrong type argument to unary minus"
+    (* TODO *)
+    | _ -> "Unkown error"
+  in raise (Typing_error error)
+
 let equ_type ty1 ty2 = match ty1, ty2 with
   | t1, t2 when t1 = t2 -> true
   | Tint, Tbool -> true
@@ -45,16 +62,16 @@ and type_const const = match const with
 
 and type_unop env op e = let te = type_expr env e in let t = te.typ in
   match op with
-  | Unot as op -> if t = Tvoid then failwith "erreur : invalid use of void expression" else TEunop(op, type_expr env e), Tint
-  | Ustar as op -> if t = Tvoid then failwith "erreur : error: void value not ignored as it ought to be"
-      else (match t with Tptr(ty) -> TEunop(op, type_expr env e), ty | _ -> failwith "erreur : invalid type of unary `*`")
-  | Uamp as op -> if is_lvalue e then TEunop(op, type_expr env e), Tptr(t) else failwith "erreur : lvalue required as unary ‘&’ operand"
-  | Uincr_l as op -> if is_lvalue e then TEunop(op, type_expr env e), t else failwith "erreur : lvalue required as increment operand"
-  | Uincr_r as op -> if is_lvalue e then TEunop(op, type_expr env e), t else failwith "erreur : lvalue required as increment operand"
-  | Udecr_l as op -> if is_lvalue e then TEunop(op, type_expr env e), t else failwith "erreur : lvalue required as decrement operand"
-  | Udecr_r as op -> if is_lvalue e then TEunop(op, type_expr env e), t else failwith "erreur : lvalue required as decrement operand"
-  | Uplus as op-> if equ_type t Tint then TEunop(op, type_expr env e), Tint else failwith "erreur : wrong type argument to unary plus"
-  | Uminus as op -> if equ_type t Tint then TEunop(op, type_expr env e), Tint else failwith "erreur : wrong type argument to unary minus"
+  | Unot as op -> if t = Tvoid then (handle_error 1) else TEunop(op, type_expr env e), Tint
+  | Ustar as op -> if t = Tvoid then (handle_error 2)
+      else (match t with Tptr(ty) -> TEunop(op, type_expr env e), ty | _ -> (handle_error 3))
+  | Uamp as op -> if is_lvalue e then TEunop(op, type_expr env e), Tptr(t) else (handle_error 4)
+  | Uincr_l as op -> if is_lvalue e then TEunop(op, type_expr env e), t else (handle_error 5)
+  | Uincr_r as op -> if is_lvalue e then TEunop(op, type_expr env e), t else (handle_error 5)
+  | Udecr_l as op -> if is_lvalue e then TEunop(op, type_expr env e), t else (handle_error 6)
+  | Udecr_r as op -> if is_lvalue e then TEunop(op, type_expr env e), t else (handle_error 6)
+  | Uplus as op-> if equ_type t Tint then TEunop(op, type_expr env e), Tint else (handle_error 7)
+  | Uminus as op -> if equ_type t Tint then TEunop(op, type_expr env e), Tint else (handle_error 8)
       
 and type_binop env op e1 e2 = 
   let t1 = (type_expr env e1) in
@@ -203,14 +220,23 @@ and compute_type_dinstr_var env v t0 =
 
 
 (** val compute_type_dinstr_fct : typ Smap.t -> dfct -> typ -> tdinstr * env *)
-and compute_type_dinstr_fct env fct t0 =  
-  match fct with Dfct(typ, ident, param_list, block) ->
-    (* check if name already used *)
-    if (Smap.mem ident env) 
-      then failwith ("erreur : Redefinition of '"^ident^"'")
-      (* adding function to new env *)
-      else
-        (* test if params are of correct type *)
-        let rec test_params_type param_list t0 =
-          match param_list with
-        
+and compute_type_dinstr_fct env fct t0 = 
+  let t_dfct, env = (compute_type_dfct env fct t0) in TDinstrFct t_dfct, env
+
+(** val compute_type_dfct : typ Smap.t -> dfct -> typ -> tdfct * env *)
+and compute_type_dfct env fct t0 = failwith "TODO"
+          
+(** Type a parsed ast
+    val type_ast : fileInclude -> tfileInclude *)
+and type_ast parsed_ast =
+	(* create new env *)
+	let env = Smap.empty in
+	let dfct_list = match parsed_ast with FileInclude(l) -> l in
+  	let rec compute_type_dfct_list dfct_list new_env tdfct_list =
+			match dfct_list with 
+			| [] -> TFileInclude(tdfct_list)
+			| cur_dfct::cdr -> 
+				let typ = match cur_dfct with Dfct(typ,_,_,_) -> typ in
+					let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct typ in
+					(compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
+		in (compute_type_dfct_list dfct_list env [])

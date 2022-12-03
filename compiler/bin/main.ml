@@ -16,7 +16,7 @@ let type_only = ref false
 let spec =
   [
     "--parse-only", Arg.Set parse_only, "  stop after parsing";
-    "--type-only", Arg.Set type_only, Arg.Clear parse_only, " stop after typing";
+    "--type-only", Arg.Set type_only, " stop after typing";
   ]
 
 (** Check if the file given as argument seems correct *)
@@ -49,7 +49,7 @@ let () =
         close_in c;
         if !parse_only then exit 0 (* parse only *)
           else 
-            let typed_ast = Typer.typeAst parsed_ast in
+            let typed_ast = Typer.type_ast parsed_ast in
               if !type_only then exit 0 (* type only *)
                 else failwith "todo production de code" 
       end
@@ -63,9 +63,12 @@ let () =
             Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s@." s;
         exit 1
       | Parser.Error ->
-        report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
-        Ocolor_format.eprintf "\tsyntax error @.";
-        exit 1
+          report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
+          Ocolor_format.eprintf "\t@{<red>Syntax error @}@.";
+          exit 1
+      | Typer.Typing_error(s) ->
+          Ocolor_format.eprintf "\t@{<red>Typing error @}: %s@." s;
+          exit 1
       | e ->
-        Ocolor_format.eprintf "Anomaly: %s\n@." (Printexc.to_string e);
-        exit 2
+          Ocolor_format.eprintf "Anomaly: %s\n@." (Printexc.to_string e);
+          exit 2
