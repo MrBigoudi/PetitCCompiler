@@ -52,9 +52,10 @@ let main_is_present = ref false
 
 (** val check_main_in_env : dmap -> typ -> ident -> param list -> unit *)
 let check_main_in_env env typ id param_list =
-  print_string id;
+  (* print_string id; *)
   if not (String.equal id "main") then () 
   else
+    (* print_string "tried"; *)
     try
       let _ = search_dmap id env
         in match typ with 
@@ -380,8 +381,8 @@ and type_ast parsed_ast =
         | [] -> TFileInclude(tdfct_list)
         | cur_dfct::cdr -> 
           let (typ,ident,param_list) = match cur_dfct with Dfct(typ,ident,param_list,_) -> (typ,ident,param_list) in
-            (check_main_in_env new_env typ ident param_list);
             let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct typ in
+            (check_main_in_env new_env typ ident param_list);
             (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
       in 
         let typed_ast = (compute_type_dfct_list dfct_list env []) in
