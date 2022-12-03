@@ -3,17 +3,20 @@
 open Format
 open Syntax
 open Lexing
+open Typer
 
 (** Print the compiler usage *)
 let usage = "usage: petitCCompiler [options] file.c"
 
 (** A compiler option *)
-let parse_only = ref true
+let parse_only = ref false
+let type_only = ref false
 
 (** The option list*)
 let spec =
   [
     "--parse-only", Arg.Set parse_only, "  stop after parsing";
+    "--type-only", Arg.Set type_only, Arg.Clear parse_only, " stop after typing";
   ]
 
 (** Check if the file given as argument seems correct *)
@@ -40,12 +43,15 @@ let () =
   let c = open_in file in
   let lb = Lexing.from_channel c in
     try
+      (* parsing *)
+      let parsed_ast = Parser.file Lexer.token lb in
       begin
-        ignore(Parser.file Lexer.token lb);
         close_in c;
-        if !parse_only 
-          then exit 0
-          else failwith "Typage"
+        if !parse_only then exit 0 (* parse only *)
+          else 
+            let typed_ast = Typer.typeAst parsed_ast in
+              if !type_only then exit 0 (* type only *)
+                else failwith "todo production de code" 
       end
     with
       | Lexer.Lexing_error(s,token) ->
