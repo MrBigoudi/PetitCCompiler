@@ -17,6 +17,8 @@ let handle_error err_num pos =
     | 6 -> "Lvalue required as decrement operand"
     | 7 -> "Wrong type argument to unary plus"
     | 8 -> "Wrong type argument to unary minus"
+    | 9 -> "Use of undeclared identifier"
+    | 10 -> "Invalid operands to binary expression"
     (* TODO *)
     | _ -> "Unkown error"
   in raise (Typing_error(error, pos))
@@ -39,48 +41,62 @@ let is_ptr t = match t with
   | Tptr(_) -> true
   | _       -> false
 
-(** val type_expr : typ Smap.t -> expression -> texpression *)
+(** val type_expr : dmap -> expression -> texpression *)
 let rec type_expr env e = 
   let d, ty = compute_type_expr env e in 
   { tdesc = d ; typ = ty }
 
-(** val compute_type_expr : typ Smap.t -> expression -> tdesc * typ *)
+(** val compute_type_expr : dmap -> expression -> tdesc * typ *)
 and compute_type_expr env e = 
+  let loc = e.loc in
   match e.desc with 
-  | Econst const -> type_const const (* dunno if its more subtle but lets do this way *)
-  | Evar var -> TEvar var, (Smap.find var env)
-  | Eunop (op, e) -> type_unop env op e
-  | Ebinop (op, e1, e2) -> type_binop env op e1 e2 (* addition of pointers dont work as expected, be more careful ! *)
+  | Econst const -> type_const const
+  | Evar var -> (type_var var env loc)
+  | Eunop (op, e) -> (type_unop env op e loc)
+  | Ebinop (op, e1, e2) -> (type_binop env op e1 e2 loc) (* addition of pointers dont work as expected, be more careful ! *)
+  | Eassign (e1, e2) -> failwith "TODO"
+  | Ecall (id, e_list) -> failwith "TODO"
+  | Esizeof typ -> failwith "TODO"
 
-  | _ -> failwith "Oops not now"
+(** val type_var : ident -> dmap -> expression.loc -> tdesc * typ *)
+and type_var var env loc = 
+  try TEvar var, (search_dmap var env)
+    with _ -> (handle_error 9 loc)
 
+(** val type_const : const -> tdesc * typ *)
 and type_const const = match const with
   | Int n -> TEconst(Int(n)), Tint
   | True -> TEconst(True), Tbool
   | False -> TEconst(False), Tbool
   | Null -> TEconst(Null), Tptr(Tvoid)
 
-and type_unop env op e = let te = type_expr env e in let t = te.typ in
-  match op with
-  | Unot as op -> if t = Tvoid then (handle_error 1 e.loc) else TEunop(op, te), Tint
-  | Ustar as op -> if t = Tvoid then (handle_error 2 e.loc)
-      else (match t with Tptr(ty) -> TEunop(op, te), ty | _ -> (handle_error 3 e.loc))
-  | Uamp as op -> if is_lvalue e then TEunop(op, te), Tptr(t) else (handle_error 4 e.loc)
-  | Uincr_l as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 5 e.loc)
-  | Uincr_r as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 5 e.loc)
-  | Udecr_l as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 6 e.loc)
-  | Udecr_r as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 6 e.loc)
-  | Uplus as op-> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 7 e.loc)
-  | Uminus as op -> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 8 e.loc)
-      
-and type_binop env op e1 e2 = 
+(** val type_unop : dmap -> unop -> expression -> expression.loc -> tdesc * typ *)
+and type_unop env op e loc = 
+  let te = type_expr env e in 
+  let t = te.typ in
+    match op with
+    | Unot as op -> if t = Tvoid then (handle_error 1 loc) else TEunop(op, te), Tint
+    | Ustar as op -> if t = Tvoid then (handle_error 2 loc)
+        else (match t with Tptr(ty) -> TEunop(op, te), ty | _ -> (handle_error 3 loc))
+    | Uamp as op -> if is_lvalue e then TEunop(op, te), Tptr(t) else (handle_error 4 loc)
+    | Uincr_l as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 5 loc)
+    | Uincr_r as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 5 loc)
+    | Udecr_l as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 6 loc)
+    | Udecr_r as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 6 loc)
+    | Uplus as op-> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 7 loc)
+    | Uminus as op -> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 8 loc)
+        
+(** val type_binop : dmap -> unop -> expression -> expression -> expression.loc -> tdesc * typ *)
+and type_binop env op e1 e2 loc = 
   let t1 = (type_expr env e1) in
   let t2 = (type_expr env e2) in
   let t1_type = t1.typ in 
   let t2_type = t2.typ in 
   match op with
-  | Logic _ as op -> begin if not (equ_type Tvoid t1_type) && equ_type t1_type t2_type then TEbinop(op, t1, t2), Tint 
-    else failwith "erreur : addition ptr pas faite encore"
+  | Logic _ as op -> 
+    begin if not ((equ_type Tvoid t1_type) && equ_type t1_type t2_type)
+       then TEbinop(op, t1, t2), Tint 
+    else (handle_error 10 loc)
   end
   (* TODO + - with pointers *)
   | Arith(Badd)  as op -> 
@@ -89,29 +105,34 @@ and type_binop env op e1 e2 =
         | t1_type when equ_type t1_type t2_type -> TEbinop(op, t1, t2), Tint 
         | t1_type when equ_type t1_type Tint && is_ptr t2_type -> TEbinop(op, t1, t2), t2_type
         | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
-        | _ -> failwith "erreur : invalid operands to binary +"
+        | _ -> (handle_error 10 loc)
     end
   | Arith(Bsub) as op -> 
-      begin
-        match t1_type with 
-        | t1_type when equ_type t1_type t2_type -> TEbinop(op, t1, t2), Tint
-        | t1_type when equ_type t1_type Tint && is_ptr t2_type -> TEbinop(op, t1, t2), t2_type
-        | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
-        | Tptr(_) when t1_type = t2_type -> TEbinop(op, t1, t2), Tint
-        | _ -> failwith "erreur : invalid operands to binary -"
-      end
-  | Arith(_) as op -> if equ_type t1_type t2_type then TEbinop(op, t1, t2), Tint else failwith "erreur : invalid operands to binary"
-  | AndOr(_) as op -> begin if (equ_type Tint t1_type && equ_type t1_type t2_type) then TEbinop(op, t1, t2), Tint 
-    else failwith "erreur : TODO"
-  end
+    begin
+      match t1_type with 
+      | t1_type when equ_type t1_type t2_type -> TEbinop(op, t1, t2), Tint
+      | t1_type when equ_type t1_type Tint && is_ptr t2_type -> TEbinop(op, t1, t2), t2_type
+      | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
+      | Tptr(_) when t1_type = t2_type -> TEbinop(op, t1, t2), Tint
+      | _ -> (handle_error 10 loc)
+    end
+  | Arith(_) as op -> 
+    if equ_type t1_type t2_type
+      then TEbinop(op, t1, t2), Tint 
+      else (handle_error 10 loc)
+  | AndOr(_) as op -> 
+    begin if (equ_type Tint t1_type && equ_type t1_type t2_type) 
+      then TEbinop(op, t1, t2), Tint 
+      else (handle_error 10 loc)
+    end
 
-(** val type_instr : typ Smap.t -> instr -> typ -> tinstr *)
+(** val type_instr : dmap -> instr -> typ -> tinstr *)
 let rec type_instr env ist t0 = 
   let d, new_env = compute_type_instr env ist t0 in 
   { tdesci = d ; env = new_env }
 
-(** val compute_type_instr : typ Smap.t -> instr -> typ -> tdesci * env *)
-and compute_type_instr env ist t0 = match ist with
+(** val compute_type_instr : dmap -> instr -> typ -> tdesci * dmap *)
+and compute_type_instr (env:dmap) ist t0 = match ist with
   | Iempt -> TIempt, env
   | Ibreak -> TIbreak, env
   | Icontinue -> TIcontinue, env
@@ -128,7 +149,7 @@ and compute_type_instr env ist t0 = match ist with
   | Ifor(dvar, e, elist, i) -> compute_type_for env dvar e elist i t0
   | Iblock(Block dinstr_list) -> compute_type_block env dinstr_list t0
 
-(** val compute_type_if : typ Smap.t -> expression -> instr -> instr -> typ -> tdesci * env *)
+(** val compute_type_if : dmap -> expression -> instr -> instr -> typ -> tdesci * dmap *)
 and compute_type_if env e i1 i2 t0 =
   let te = (type_expr env e) in
     if (equ_type Tvoid (te.typ)) 
@@ -138,7 +159,7 @@ and compute_type_if env e i1 i2 t0 =
       let ti2 = (type_instr env i2 t0) in
         TIif(te, ti1, ti2), env
 
-(** val compute_type_while : typ Smap.t -> expression -> instr -> typ -> tdesci * env *)
+(** val compute_type_while : dmap -> expression -> instr -> typ -> tdesci * dmap *)
 and compute_type_while env e i t0 =
   let te = (type_expr env e) in
       if(equ_type Tvoid (te.typ))
@@ -147,7 +168,7 @@ and compute_type_while env e i t0 =
       let ti = (type_instr env i t0) in TIwhile(te, ti), env
 
 
-(** val compute_type_for : typ Smap.t -> dvar -> instr -> instr -> typ -> tdesci * env *)
+(** val compute_type_for : dmap -> dvar -> instr -> instr -> typ -> tdesci * dmap *)
 and compute_type_for env dvar e elist i t0 =
   (* val createTExprList : expression list -> texpression list -> texpression list *)
   let rec createTExprList exprList acc = 
@@ -177,19 +198,19 @@ and compute_type_for env dvar e elist i t0 =
   | _ -> failwith "TODO for with dvar (maybe change in Parser ?)" (* for(d;e;l) *)
 
 
-(** val compute_type_block : typ Smap.t -> dinstr list -> typ -> tdesci * env *)
+(** val compute_type_block : dmap -> dinstr list -> typ -> tdesci * dmap *)
 and compute_type_block env di_list t0 =
-  (* val compute_type_block_instr : dinstr list -> typ Smap.t -> tdinstr list -> tdesci * env *)
+  (* val compute_type_block_instr : dinstr list -> dmap -> tdinstr list -> tdesci * dmap *)
   let rec compute_type_block_instr di_list new_env tdi_list =
     match di_list with 
     | [] -> TIblock(TBlock(tdi_list)), env (* restore the previous env *)
     | cur_di::cdr ->
       let (cur_tdi, new_env) = compute_type_dinstr new_env cur_di t0 in
-        (compute_type_block_instr cdr new_env (tdi_list@[cur_tdi])) (* update the block env *)
-  in (compute_type_block_instr di_list env [])
+        (compute_type_block_instr cdr new_env (tdi_list@[cur_tdi])) (* update the block dmap *)
+  in (compute_type_block_instr di_list (new_block_dmap env) [])
     
 
-(** val compute_type_dinstr : typ Smap.t -> dinstr -> typ -> tdinstr * env *)
+(** val compute_type_dinstr : dmap -> dinstr -> typ -> tdinstr * dmap *)
 and compute_type_dinstr env di t0 =
   match di with 
   | DinstrVar v -> (compute_type_dinstr_var env v t0)
@@ -197,7 +218,7 @@ and compute_type_dinstr env di t0 =
   | Dinstr i -> let (tdesci, env) = (compute_type_instr env i t0) in (TDinstr({tdesci=tdesci; env=env}), env)
 
 
-(** val compute_type_dinstr_var : typ Smap.t -> dvar -> typ -> tdinstr * env *)
+(** val compute_type_dinstr_var : dmap -> dvar -> typ -> tdinstr * dmap *)
 and compute_type_dinstr_var env v t0 = 
   match v with Dvar(typ, ident, exp) ->
     (* check if variable is of type void *)
@@ -205,32 +226,32 @@ and compute_type_dinstr_var env v t0 =
       then failwith ("erreur : Variable '"^ident^"' has incomplete type 'void' ") 
       else
       (* check if name already used *)
-      if (Smap.mem ident env) 
+      if (in_new_env_dmap ident env) 
         then failwith ("erreur : Redefinition of '"^ident^"'")
         (* adding variable to new env *)
         else 
           match exp with 
-          | None -> TDinstrVar(TDvar(typ, ident, None)), (Smap.add ident typ env)
+          | None -> TDinstrVar(TDvar(typ, ident, None)), (add_dmap ident typ env)
           | Some(e) -> 
             let (e_tdesc, e_typ) = (compute_type_expr env e) in
               (* typ x = e; -> test if 'typ' equivalent to type of 'e'*)
               if not (equ_type e_typ typ) 
                 then failwith ("erreur : Incompatible conversion initializing 'typ' with an expression of type 'te.typ' ")
-                else TDinstrVar(TDvar(typ, ident, Some({tdesc=e_tdesc; typ=e_typ}))), (Smap.add ident typ env)
+                else TDinstrVar(TDvar(typ, ident, Some({tdesc=e_tdesc; typ=e_typ}))), (add_dmap ident typ env)
 
 
-(** val compute_type_dinstr_fct : typ Smap.t -> dfct -> typ -> tdinstr * env *)
+(** val compute_type_dinstr_fct : dmap -> dfct -> typ -> tdinstr * dmap *)
 and compute_type_dinstr_fct env fct t0 = 
   let t_dfct, env = (compute_type_dfct env fct t0) in TDinstrFct t_dfct, env
 
-(** val compute_type_dfct : typ Smap.t -> dfct -> typ -> tdfct * env *)
+(** val compute_type_dfct : dmap -> dfct -> typ -> tdfct * dmap *)
 and compute_type_dfct env fct t0 = failwith "TODO"
           
 (** Type a parsed ast
     val type_ast : fileInclude -> tfileInclude *)
 and type_ast parsed_ast =
 	(* create new env *)
-	let env = Smap.empty in
+	let (env:dmap) = { old_env=Smap.empty; new_env=Smap.empty} in
 	let dfct_list = match parsed_ast with FileInclude(l) -> l in
   	let rec compute_type_dfct_list dfct_list new_env tdfct_list =
 			match dfct_list with 

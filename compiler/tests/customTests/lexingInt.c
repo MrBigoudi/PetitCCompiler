@@ -4,8 +4,5 @@
 
 int main() {
   int x;
-  for(;;){
-    int x;
-    return 0;
-  }
+  int x;
 }
