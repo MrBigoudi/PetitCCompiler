@@ -154,7 +154,7 @@ and type_binop env op e1 e2 loc =
   | Arith(Badd)  as op -> 
     begin
       match t1_type with 
-        | t1_type when equ_type t1_type t2_type -> TEbinop(op, t1, t2), Tint 
+        | t1_type when (not (is_ptr t1_type)) && (equ_type t1_type t2_type) -> TEbinop(op, t1, t2), Tint 
         | t1_type when equ_type t1_type Tint && is_ptr t2_type -> TEbinop(op, t1, t2), t2_type
         | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
         | _ -> (handle_error 10 loc)
