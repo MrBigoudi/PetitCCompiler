@@ -58,10 +58,8 @@ let in_loop = ref false
 
 (** val check_main_in_env : dmap -> typ -> ident -> param list -> unit *)
 let check_main_in_env env typ id param_list =
-  (* print_string id; *)
   if not (String.equal id "main") then () 
   else
-    (* print_string "tried"; *)
     try
       let _ = search_dmap id env
         in match typ with 
@@ -101,7 +99,6 @@ let rec type_expr env e =
 
 (** val compute_type_expr : dmap -> expression -> tdesc * typ *)
 and compute_type_expr env e = 
-  (* print_dmap env; *)
   let loc = e.loc in
   match e.desc with 
   | Econst const -> type_const const
@@ -124,7 +121,6 @@ and type_const const =
 
 (** val type_var : ident -> dmap -> expression.loc -> tdesc * typ *)
 and type_var var env loc = 
-  (* print_dmap env; *)
   try TEvar var, (search_dmap var env)
     with _ -> (handle_error 9 loc)
 
@@ -188,7 +184,6 @@ and type_binop env op e1 e2 loc =
 
 (** val type_assign : dmap -> expression -> expression -> expression.loc -> tdesc * typ *)
 and type_assign env e1 e2 loc =
-  (* print_dmap env; *)
   let te1 = type_expr env e1 in
   let te2 = type_expr env e2 in
   if (is_lvalue e1) && (equ_type te1.typ te2.typ) then TEassign(te1, te2), te1.typ else 
@@ -198,13 +193,11 @@ and type_assign env e1 e2 loc =
 (** val type_call : dmap -> ident -> expression list -> expression.loc -> tdesc * typ *)
 and type_call env id e_list loc = 
   (* test if function exists in env *)
-  (* print_dmap env; *)
   let fct_typ = 
     begin
       try search_dmap id env with _ -> (handle_error 14 loc);
     end 
   in
-    (* print_string (typ_to_string fct_typ); *)
     match fct_typ with 
       | Tfct(ret_typ, param_typ) ->
         (* test if given parameters are correct *)
@@ -238,7 +231,7 @@ and compute_type_instr (env:dmap) ist t0 locdi =
   | Iempt -> TIempt, env
   | Ibreak -> if !in_loop then TIbreak, env else (handle_error 29 locdi)
   | Icontinue -> if !in_loop then TIcontinue, env else (handle_error 30 locdi)
-  | Iexpr e -> (*print_string "iexpr\n";*) TIexpr (type_expr env e), env
+  | Iexpr e -> TIexpr (type_expr env e), env
   | Iret None -> if t0 = Tvoid 
                     then TIret(None), env 
                     else (handle_error 18 locdi)
@@ -274,7 +267,6 @@ and compute_type_while env e i t0 locdi =
 (** val compute_type_for : dmap -> dvar -> instr -> instr -> typ -> dinstr.loc -> tdesci * dmap *)
 and compute_type_for env dvar e elist i t0 locdi =
   in_loop := true;
-  (* print_dmap env; *)
   (* val createTExprList : expression list -> texpression list -> dmap -> texpression list *)
   let rec createTExprList exprList acc env = 
     match exprList with
@@ -291,7 +283,6 @@ and compute_type_for env dvar e elist i t0 locdi =
       | (TDinstrVar(tdvar),new_env) -> Some(tdvar), new_env
       | _ -> handle_error 20 locdi
   in 
-    (* print_dmap new_env; *)
     begin
       match e with 
       | None -> (* for(d;;l) -> for(d;true;l) *)
@@ -338,7 +329,6 @@ and compute_type_dinstr env di t0 =
 
 (** val compute_type_dinstr_var : dmap -> dvar -> typ -> dinstr.loc -> tdinstr * dmap *)
 and compute_type_dinstr_var env v (*t0*) locdi = 
-  (* print_dmap env; *)
   match v with Dvar(typ, ident, exp) ->
     (* check if variable is of type void *)
     if (equ_type typ Tvoid) 
@@ -365,7 +355,6 @@ and compute_type_dinstr_fct env fct (*t0*) =
 
 (** val compute_type_dfct : dmap -> dfct -> typ -> tdfct * dmap *)
 and compute_type_dfct env fct (*t0*) = 
-  (* print_string "dfct\n"; *)
   let fct, locdi = fct.descdfct, fct.locdfct in
   match fct with
     Dfct (typ, ident, p_list, Block(dinstr_list)) ->
@@ -381,7 +370,6 @@ and compute_type_dfct env fct (*t0*) =
           match p_list with
           | [] -> (types, env)
           | Param(typ,id)::cdr -> 
-            (* print_dmap env; *)
             let new_env = try (add_new_dmap id typ env) with _ -> (handle_error 24 locdi) 
               in
                 (* adding params to new env *)
@@ -390,7 +378,6 @@ and compute_type_dfct env fct (*t0*) =
           (* adding fun prototype to new env and adding all parameters to new env *)
           in let fun_typ = Tfct(typ,p_types) in
             let new_env = try (add_new_dmap ident fun_typ new_env) with _ -> (handle_error 25 locdi)
-          (* in print_dmap new_env; *)
             (* checking return type of the function *)
               in let (tdesci,_) = (compute_type_block new_env dinstr_list typ true) (* t0 is now the fun return typ *)
                 in match tdesci with 
@@ -426,7 +413,6 @@ and type_ast parsed_ast =
               with _ -> (handle_error 23 dummy_loc)
             in
             let new_env = {old_env = new_env.old_env ; new_env = Smap.empty} in
-              (* (print_dmap new_env); *)
               (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
       in 
         let typed_ast = (compute_type_dfct_list dfct_list env []) in
