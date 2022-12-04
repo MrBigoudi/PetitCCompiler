@@ -14,7 +14,7 @@ type dmap = { old_env : env ; new_env : env}
 let search_dmap id doub_map = 
   let oenv = doub_map.old_env in
   let nenv = doub_map.new_env in
-  match Smap.find_opt id nenv, Smap.find_opt id oenv with
+  match Smap.find_opt id oenv, Smap.find_opt id nenv with
     | None, None -> raise (Environnement_error("no id found"))
     | None, Some(t) -> t
     | Some(t), None -> t

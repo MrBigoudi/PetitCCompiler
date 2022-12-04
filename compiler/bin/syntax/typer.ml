@@ -42,8 +42,9 @@ let handle_error err_num pos =
     | 26 -> "Can't redefine stdandard function" (* made up error message *)
     | 27 -> "Main function should not take arguments" (* made up error message *)
     | 28 -> "Main function should return an int" (* made up error message *)
-    | 29 -> "break statement not within a loop"
-    | 30 -> "continue statement not within a loop"
+    | 29 -> "Break statement not within a loop"
+    | 30 -> "Continue statement not within a loop"
+    | 31 -> "Called object which is not a function or function pointer"
     (* TODO *)
     | _ -> "Unkown error"
   in raise (Typing_error(error, pos))
@@ -193,10 +194,13 @@ and type_assign env e1 e2 loc =
 (** val type_call : dmap -> ident -> expression list -> expression.loc -> tdesc * typ *)
 and type_call env id e_list loc = 
   (* test if function exists in env *)
-  (* print_string "call\n"; *)
-  let fct_typ = begin
-    try search_dmap id env with _ -> (handle_error 14 loc);
-  end in
+  (* print_dmap env; *)
+  let fct_typ = 
+    begin
+      try search_dmap id env with _ -> (handle_error 14 loc);
+    end 
+  in
+    (* print_string (typ_to_string fct_typ); *)
     match fct_typ with 
       | Tfct(ret_typ, param_typ) ->
         (* test if given parameters are correct *)
@@ -213,7 +217,7 @@ and type_call env id e_list loc =
                 (* recursive call *)
                 else (test_param_fun_call e_cdr p_cdr (te_list@[te]))
           in (test_param_fun_call e_list param_typ [])
-      | _ -> assert false
+      | _ -> handle_error 31 loc
 
 
 
