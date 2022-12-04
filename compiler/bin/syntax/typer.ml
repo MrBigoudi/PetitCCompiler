@@ -101,7 +101,7 @@ let rec type_expr env e =
 
 (** val compute_type_expr : dmap -> expression -> tdesc * typ *)
 and compute_type_expr env e = 
-  print_dmap env;
+  (* print_dmap env; *)
   let loc = e.loc in
   match e.desc with 
   | Econst const -> type_const const
@@ -115,7 +115,7 @@ and compute_type_expr env e =
 
 (** val type_const : const -> tdesc * typ *)
 and type_const const = 
-  print_string "const\n";
+  (* print_string "const\n"; *)
   match const with
   | Int n -> TEconst(Int(n)), Tint
   | True -> TEconst(True), Tbool
@@ -275,33 +275,38 @@ and compute_type_while env e i t0 locdi =
 (** val compute_type_for : dmap -> dvar -> instr -> instr -> typ -> dinstr.loc -> tdesci * dmap *)
 and compute_type_for env dvar e elist i t0 locdi =
   in_loop := true;
-  (* val createTExprList : expression list -> texpression list -> texpression list *)
-  let rec createTExprList exprList acc = 
+  (* val createTExprList : expression list -> texpression list -> dmap -> texpression list *)
+  let rec createTExprList exprList acc env = 
     match exprList with
     | [] -> acc
     | e::cdr -> let texpr = (type_expr env e) in
-                  (createTExprList cdr acc@[texpr])
+                  (createTExprList cdr (acc@[texpr]) env)
   in
-  let new_env =
+  let tdvar, new_env =
     match dvar with 
-    | None -> (* d; for(;e;l) *) env
-    | Some(d) -> match compute_type_dinstr_var env d t0 locdi with (_,new_env) -> new_env
+    (* d; for(;e;l) *)
+    | None -> None, env
+    (* for(d;e;l) *)
+    | Some(d) -> match compute_type_dinstr_var env d t0 locdi with 
+      | (TDinstrVar(tdvar),new_env) -> Some(tdvar), new_env
+      | _ -> handle_error 20 locdi
   in 
+    (* print_dmap new_env; *)
     begin
       match e with 
       | None -> (* for(d;;l) -> for(d;true;l) *)
         let te = {tdesc = TEconst(True); typ = Tbool} in 
-          let te_list = (createTExprList elist []) in
+          let te_list = (createTExprList elist [] new_env) in
             let s = (type_instr new_env i t0 locdi) in
-              in_loop := false; TIfor(None, Some(te), te_list, s), new_env
+              in_loop := false; TIfor(tdvar, Some(te), te_list, s), new_env
       | Some e ->
         let te = (type_expr new_env e) in
         if(equ_type Tvoid (te.typ))
           then (handle_error 21 locdi)
           else
-            let te_list = (createTExprList elist []) in
+            let te_list = (createTExprList elist [] new_env) in
             let s = (type_instr new_env i t0 locdi) in
-              in_loop := false; TIfor(None, Some(te), te_list, s), new_env
+              in_loop := false; TIfor(tdvar, Some(te), te_list, s), new_env
     end
 
 
