@@ -34,7 +34,6 @@
         List.iter (fun (key, token) -> Hashtbl.add h key token) kwd_table;
         (* get the value corresponding to key *)
         fun key ->
-            let key = String.lowercase_ascii key in 
             (* if not a keyword return an ident *)
             try Hashtbl.find h key with _ -> IDENT key
 

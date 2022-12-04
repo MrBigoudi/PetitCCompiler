@@ -115,7 +115,6 @@ and compute_type_expr env e =
 
 (** val type_const : const -> tdesc * typ *)
 and type_const const = 
-  (* print_string "const\n"; *)
   match const with
   | Int n -> TEconst(Int(n)), Tint
   | True -> TEconst(True), Tbool
