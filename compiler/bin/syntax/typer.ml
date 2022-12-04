@@ -265,25 +265,27 @@ and compute_type_for env dvar e elist i t0 =
     | e::cdr -> let texpr = (type_expr env e) in
                   (createTExprList cdr acc@[texpr])
   in
-  match dvar with 
-  | None -> (* d; for(;e;l) *)
+  let new_env =
+    match dvar with 
+    | None -> (* d; for(;e;l) *) env
+    | Some(d) -> match compute_type_dinstr_var env d t0 with (_,new_env) -> new_env
+  in 
     begin
       match e with 
       | None -> (* for(d;;l) -> for(d;true;l) *)
         let te = {tdesc = TEconst(True); typ = Tbool} in 
           let te_list = (createTExprList elist []) in
-            let s = (type_instr env i t0) in
-              TIfor(None, Some(te), te_list, s), env
+            let s = (type_instr new_env i t0) in
+              TIfor(None, Some(te), te_list, s), new_env
       | Some e ->
-        let te = (type_expr env e) in
+        let te = (type_expr new_env e) in
         if(equ_type Tvoid (te.typ))
           then (handle_error 21 dummy_loc)
           else
             let te_list = (createTExprList elist []) in
-            let s = (type_instr env i t0) in
-              TIfor(None, Some(te), te_list, s), env
+            let s = (type_instr new_env i t0) in
+              TIfor(None, Some(te), te_list, s), new_env
     end
-  | _ -> failwith "TODO for with dvar (maybe change in Parser ?)" (* for(d;e;l) *)
 
 
 (** val compute_type_block : dmap -> dinstr list -> typ -> tdesci * dmap *)
