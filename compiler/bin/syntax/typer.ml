@@ -275,6 +275,7 @@ and compute_type_while env e i t0 locdi =
 (** val compute_type_for : dmap -> dvar -> instr -> instr -> typ -> dinstr.loc -> tdesci * dmap *)
 and compute_type_for env dvar e elist i t0 locdi =
   in_loop := true;
+  (* print_dmap env; *)
   (* val createTExprList : expression list -> texpression list -> dmap -> texpression list *)
   let rec createTExprList exprList acc env = 
     match exprList with
@@ -298,7 +299,8 @@ and compute_type_for env dvar e elist i t0 locdi =
         let te = {tdesc = TEconst(True); typ = Tbool} in 
           let te_list = (createTExprList elist [] new_env) in
             let s = (type_instr new_env i t0 locdi) in
-              in_loop := false; TIfor(tdvar, Some(te), te_list, s), new_env
+              in_loop := false; 
+              TIfor(tdvar, Some(te), te_list, s), env (* return previous env *)
       | Some e ->
         let te = (type_expr new_env e) in
         if(equ_type Tvoid (te.typ))
@@ -306,7 +308,8 @@ and compute_type_for env dvar e elist i t0 locdi =
           else
             let te_list = (createTExprList elist [] new_env) in
             let s = (type_instr new_env i t0 locdi) in
-              in_loop := false; TIfor(tdvar, Some(te), te_list, s), new_env
+              in_loop := false; 
+              TIfor(tdvar, Some(te), te_list, s), env (* return previous env *)
     end
 
 
