@@ -359,25 +359,20 @@ and compute_type_dfct env fct t0 locdi =
       then (handle_error 22 locdi)
       else
         (* getting type of all parameters and the new env with these parameters *)
-        (* val get_param_types : param list -> typ list -> ident list -> dmap -> typ list * dmap *)
-        let rec get_param_types p_list types idents env = 
+        (* val get_param_types : param list -> typ list -> dmap -> typ list * dmap *)
+        let rec get_param_types p_list types env = 
           match p_list with
           | [] -> (types, env)
-          | p::cdr -> 
+          | Param(typ,id)::cdr -> 
             (* print_dmap env; *)
-            let (typ,id) = match p with Param(typ,id) -> (typ,id)
-              (* testing if two params have same name *)
-              in 
-                if List.mem id idents 
-                  then (handle_error 24 locdi)
-                  else
-                    let new_env = (add_new_dmap id typ env) in
-                      (* adding params to new env *)
-                      (get_param_types cdr (types@[typ]) (idents@[ident]) new_env)
-        in let (p_types, new_env) = (get_param_types p_list [] [] env)
+            let new_env = try (add_new_dmap id typ env) with _ -> (handle_error 24 locdi) 
+              in
+                (* adding params to new env *)
+                (get_param_types cdr (types@[typ]) new_env)
+        in let (p_types, new_env) = (get_param_types p_list [] env)
           (* adding fun prototype to new env and adding all parameters to new env *)
           in let fun_typ = Tfct(typ,p_types) in
-            let new_env = (add_new_dmap ident fun_typ new_env)
+            let new_env = try (add_new_dmap ident fun_typ new_env) with _ -> (handle_error 25 locdi)
           (* in print_dmap new_env; *)
             (* checking return type of the function *)
               in let (tdesci,_) = (compute_type_block new_env dinstr_list typ true) (* t0 is now the fun return typ *)
