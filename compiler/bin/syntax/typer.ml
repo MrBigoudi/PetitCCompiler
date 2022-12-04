@@ -288,7 +288,7 @@ and compute_type_for env dvar e elist i t0 locdi =
     (* d; for(;e;l) *)
     | None -> None, env
     (* for(d;e;l) *)
-    | Some(d) -> match compute_type_dinstr_var env d t0 locdi with 
+    | Some(d) -> match compute_type_dinstr_var (new_block_dmap env) d t0 locdi with (* creating new empty block env for the for loop *)
       | (TDinstrVar(tdvar),new_env) -> Some(tdvar), new_env
       | _ -> handle_error 20 locdi
   in 
