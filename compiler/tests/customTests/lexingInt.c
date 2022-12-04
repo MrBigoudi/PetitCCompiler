@@ -2,4 +2,4 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-int main(){}
+int main() { bool *p; 1-p; }

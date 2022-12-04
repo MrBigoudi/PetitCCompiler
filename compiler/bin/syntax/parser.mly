@@ -118,6 +118,9 @@ block:
 ;
 
 decl_instr:
+  | d = descdi { { descdi = d ; locdi = $startpos, $endpos } }
+
+descdi:
   | dfct = decl_fct { DinstrFct(dfct) }
   | dv = decl_var SEMI_COLON { DinstrVar(dv) }
   | ist = instr { Dinstr(ist) }

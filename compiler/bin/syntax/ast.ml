@@ -60,7 +60,11 @@ and desc =
 type dvar = Dvar of typ * ident * expression option
 
 (** Instruction declarations *)
-and dinstr = 
+and dinstr = {
+  descdi: descdi;
+  locdi: loc
+}
+and descdi = 
   | DinstrFct of dfct
   | DinstrVar of dvar
   | Dinstr of instr

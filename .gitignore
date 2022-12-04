@@ -10,7 +10,7 @@
 
 # ocamlbuild working directory
 _build/
-customTests/
+compiler/tests/customTests/*
 
 # ocamlbuild targets
 *.byte
