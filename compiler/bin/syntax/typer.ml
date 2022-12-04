@@ -287,7 +287,7 @@ and compute_type_for env dvar e elist i t0 locdi =
     (* d; for(;e;l) *)
     | None -> None, env
     (* for(d;e;l) *)
-    | Some(d) -> match compute_type_dinstr_var (new_block_dmap env) d t0 locdi with (* creating new empty block env for the for loop *)
+    | Some(d) -> match compute_type_dinstr_var (new_block_dmap env) d (*t0*) locdi with (* creating new empty block env for the for loop *)
       | (TDinstrVar(tdvar),new_env) -> Some(tdvar), new_env
       | _ -> handle_error 20 locdi
   in 
@@ -331,13 +331,13 @@ and compute_type_block env di_list t0 from_dfct =
 and compute_type_dinstr env di t0 =
   let locdi = di.locdi in
   match di.descdi with 
-  | DinstrVar v -> (compute_type_dinstr_var env v t0 locdi)
-  | DinstrFct dfct -> (compute_type_dinstr_fct env dfct t0)
+  | DinstrVar v -> (compute_type_dinstr_var env v (*t0*) locdi)
+  | DinstrFct dfct -> (compute_type_dinstr_fct env dfct (*t0*))
   | Dinstr i -> let (tdesci, env) = (compute_type_instr env i t0 locdi) in (TDinstr({tdesci=tdesci; env=env}), env)
 
 
 (** val compute_type_dinstr_var : dmap -> dvar -> typ -> dinstr.loc -> tdinstr * dmap *)
-and compute_type_dinstr_var env v t0 locdi = 
+and compute_type_dinstr_var env v (*t0*) locdi = 
   (* print_dmap env; *)
   match v with Dvar(typ, ident, exp) ->
     (* check if variable is of type void *)
@@ -360,11 +360,11 @@ and compute_type_dinstr_var env v t0 locdi =
 
 
 (** val compute_type_dinstr_fct : dmap -> dfct -> typ -> tdinstr * dmap *)
-and compute_type_dinstr_fct env fct t0 = 
-  let t_dfct, env = (compute_type_dfct env fct t0) in TDinstrFct t_dfct, env
+and compute_type_dinstr_fct env fct (*t0*) = 
+  let t_dfct, env = (compute_type_dfct env fct (*t0*)) in TDinstrFct t_dfct, env
 
 (** val compute_type_dfct : dmap -> dfct -> typ -> tdfct * dmap *)
-and compute_type_dfct env fct t0 = 
+and compute_type_dfct env fct (*t0*) = 
   (* print_string "dfct\n"; *)
   let fct, locdi = fct.descdfct, fct.locdfct in
   match fct with
@@ -413,7 +413,7 @@ and type_ast parsed_ast =
         | [] -> TFileInclude(tdfct_list)
         | cur_dfct::cdr -> 
           let (typ,ident,param_list) = match cur_dfct with {descdfct=Dfct(typ,ident,param_list,_) ; locdfct=_} -> (typ,ident,param_list) in
-            let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct typ in
+            let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct (*typ*) in
             (check_main_in_env new_env typ ident param_list);
             (* add type of f in global env *)
             let rec get_fct_type param_list types_list =
