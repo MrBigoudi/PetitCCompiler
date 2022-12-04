@@ -51,7 +51,11 @@ file:
   EOF { FileInclude fctl }
 ;
 
+
 decl_fct:
+  | d = descdfct { { descdfct = d ; locdfct = $startpos, $endpos } }
+
+descdfct:
   ty = typ 
   id = IDENT
   LPAR pl = separated_list(COMMA, param) RPAR

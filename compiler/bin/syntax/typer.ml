@@ -325,7 +325,7 @@ and compute_type_dinstr env di t0 =
   let locdi = di.locdi in
   match di.descdi with 
   | DinstrVar v -> (compute_type_dinstr_var env v t0 locdi)
-  | DinstrFct fct -> (compute_type_dinstr_fct env fct t0 locdi)
+  | DinstrFct dfct -> (compute_type_dinstr_fct env dfct t0)
   | Dinstr i -> let (tdesci, env) = (compute_type_instr env i t0 locdi) in (TDinstr({tdesci=tdesci; env=env}), env)
 
 
@@ -352,13 +352,14 @@ and compute_type_dinstr_var env v t0 locdi =
                 else TDinstrVar(TDvar(typ, ident, Some({tdesc=e_tdesc; typ=e_typ}))), (add_new_dmap ident typ env)
 
 
-(** val compute_type_dinstr_fct : dmap -> dfct -> typ -> dinstr.loc -> tdinstr * dmap *)
-and compute_type_dinstr_fct env fct t0 locdi = 
-  let t_dfct, env = (compute_type_dfct env fct t0 locdi) in TDinstrFct t_dfct, env
+(** val compute_type_dinstr_fct : dmap -> dfct -> typ -> tdinstr * dmap *)
+and compute_type_dinstr_fct env fct t0 = 
+  let t_dfct, env = (compute_type_dfct env fct t0) in TDinstrFct t_dfct, env
 
-(** val compute_type_dfct : dmap -> dfct -> typ -> dinstr.loc -> tdfct * dmap *)
-and compute_type_dfct env fct t0 locdi = 
+(** val compute_type_dfct : dmap -> dfct -> typ -> tdfct * dmap *)
+and compute_type_dfct env fct t0 = 
   (* print_string "dfct\n"; *)
+  let fct, locdi = fct.descdfct, fct.locdfct in
   match fct with
     Dfct (typ, ident, p_list, Block(dinstr_list)) ->
     (* check if standard function *)
@@ -404,8 +405,8 @@ and type_ast parsed_ast =
         match dfct_list with 
         | [] -> TFileInclude(tdfct_list)
         | cur_dfct::cdr -> 
-          let (typ,ident,param_list) = match cur_dfct with Dfct(typ,ident,param_list,_) -> (typ,ident,param_list) in
-            let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct typ dummy_loc in
+          let (typ,ident,param_list) = match cur_dfct with {descdfct=Dfct(typ,ident,param_list,_) ; locdfct=_} -> (typ,ident,param_list) in
+            let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct typ in
             (check_main_in_env new_env typ ident param_list);
             (* add type of f in global env *)
             let rec get_fct_type param_list types_list =

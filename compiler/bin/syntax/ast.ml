@@ -87,7 +87,11 @@ and descdi =
   | Dinstr of instr
 
 (** Function declarations *)
-and dfct = Dfct of typ * ident * param list * block
+and dfct = {
+  descdfct: descdfct;
+  locdfct: loc
+}
+and descdfct = Dfct of typ * ident * param list * block
 
 (** Instruction blocks *)
 and block = Block of dinstr list
