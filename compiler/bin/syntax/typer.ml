@@ -241,7 +241,7 @@ and compute_type_instr (env:dmap) ist t0 locdi =
   | Iif(e, i1, i2) -> compute_type_if env e i1 i2 t0 locdi
   | Iwhile(e, i) -> compute_type_while env e i t0 locdi
   | Ifor(dvar, e, elist, i) -> compute_type_for env dvar e elist i t0 locdi
-  | Iblock(Block dinstr_list) -> compute_type_block env dinstr_list t0
+  | Iblock(Block dinstr_list) -> compute_type_block env dinstr_list t0 false
 
 (** val compute_type_if : dmap -> expression -> instr -> instr -> typ -> dinstr.loc -> tdesci * dmap *)
 and compute_type_if env e i1 i2 t0 locdi =
@@ -296,8 +296,8 @@ and compute_type_for env dvar e elist i t0 locdi =
     end
 
 
-(** val compute_type_block : dmap -> dinstr list -> typ -> tdesci * dmap *)
-and compute_type_block env di_list t0 =
+(** val compute_type_block : dmap -> dinstr list -> typ -> bool -> tdesci * dmap *)
+and compute_type_block env di_list t0 from_dfct =
   (* val compute_type_block_instr : dinstr list -> dmap -> tdinstr list -> tdesci * dmap *)
   let rec compute_type_block_instr di_list new_env tdi_list =
     match di_list with 
@@ -305,7 +305,10 @@ and compute_type_block env di_list t0 =
     | cur_di::cdr ->
       let (cur_tdi, new_env) = compute_type_dinstr new_env cur_di t0 in
         (compute_type_block_instr cdr new_env (tdi_list@[cur_tdi])) (* update the block dmap *)
-  in (compute_type_block_instr di_list (new_block_dmap env) [])
+  in 
+    (* if new block from decl fun then do not create a new env *)
+    if from_dfct then (compute_type_block_instr di_list env [])
+      else (compute_type_block_instr di_list (new_block_dmap env) [])
     
 
 (** val compute_type_dinstr : dmap -> dinstr -> typ -> tdinstr * dmap *)
@@ -377,7 +380,7 @@ and compute_type_dfct env fct t0 locdi =
             let new_env = (add_new_dmap ident fun_typ new_env)
           (* in print_dmap new_env; *)
             (* checking return type of the function *)
-              in let (tdesci,_) = (compute_type_block new_env dinstr_list typ) (* t0 is now the fun return typ *)
+              in let (tdesci,_) = (compute_type_block new_env dinstr_list typ true) (* t0 is now the fun return typ *)
                 in match tdesci with 
                   | TIblock t_block -> TDfct(typ, ident, p_list, t_block), new_env
                   | _ -> assert false (* should not end up here *)
@@ -400,7 +403,7 @@ and type_ast parsed_ast =
           let (typ,ident,param_list) = match cur_dfct with Dfct(typ,ident,param_list,_) -> (typ,ident,param_list) in
             let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct typ dummy_loc in
             (check_main_in_env new_env typ ident param_list);
-            (* ajouter typ de f dans global env *)
+            (* add type of f in global env *)
             let rec get_fct_type param_list types_list =
               match param_list with
               | [] -> Tfct(typ,types_list)
