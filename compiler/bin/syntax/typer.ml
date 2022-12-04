@@ -42,6 +42,8 @@ let handle_error err_num pos =
     | 26 -> "Can't redefine stdandard function" (* made up error message *)
     | 27 -> "Main function should not take arguments" (* made up error message *)
     | 28 -> "Main function should return an int" (* made up error message *)
+    | 29 -> "break statement not within a loop"
+    | 30 -> "continue statement not within a loop"
     (* TODO *)
     | _ -> "Unkown error"
   in raise (Typing_error(error, pos))
@@ -49,6 +51,9 @@ let handle_error err_num pos =
 
 (** check if there is a main function in the file *)
 let main_is_present = ref false
+
+(** check if we can use break and continue *)
+let in_loop = ref false
 
 (** val check_main_in_env : dmap -> typ -> ident -> param list -> unit *)
 let check_main_in_env env typ id param_list =
@@ -223,8 +228,8 @@ let rec type_instr env ist t0 locdi =
 and compute_type_instr (env:dmap) ist t0 locdi = 
   match ist with
   | Iempt -> TIempt, env
-  | Ibreak -> TIbreak, env
-  | Icontinue -> TIcontinue, env
+  | Ibreak -> if !in_loop then TIbreak, env else (handle_error 29 locdi)
+  | Icontinue -> if !in_loop then TIcontinue, env else (handle_error 30 locdi)
   | Iexpr e -> TIexpr (type_expr env e), env
   | Iret None -> if t0 = Tvoid 
                     then TIret(None), env 
@@ -250,15 +255,17 @@ and compute_type_if env e i1 i2 t0 locdi =
 
 (** val compute_type_while : dmap -> expression -> instr -> typ -> dinstr.loc -> tdesci * dmap *)
 and compute_type_while env e i t0 locdi =
+  in_loop := true;
   let te = (type_expr env e) in
       if(equ_type Tvoid (te.typ))
         then (handle_error 20 locdi)
     else 
-      let ti = (type_instr env i t0 locdi) in TIwhile(te, ti), env
+      let ti = (type_instr env i t0 locdi)in (in_loop := false ; TIwhile(te, ti), env)
 
 
 (** val compute_type_for : dmap -> dvar -> instr -> instr -> typ -> dinstr.loc -> tdesci * dmap *)
 and compute_type_for env dvar e elist i t0 locdi =
+  in_loop := true;
   (* val createTExprList : expression list -> texpression list -> texpression list *)
   let rec createTExprList exprList acc = 
     match exprList with
@@ -277,7 +284,7 @@ and compute_type_for env dvar e elist i t0 locdi =
         let te = {tdesc = TEconst(True); typ = Tbool} in 
           let te_list = (createTExprList elist []) in
             let s = (type_instr new_env i t0 locdi) in
-              TIfor(None, Some(te), te_list, s), new_env
+              in_loop := false; TIfor(None, Some(te), te_list, s), new_env
       | Some e ->
         let te = (type_expr new_env e) in
         if(equ_type Tvoid (te.typ))
@@ -285,7 +292,7 @@ and compute_type_for env dvar e elist i t0 locdi =
           else
             let te_list = (createTExprList elist []) in
             let s = (type_instr new_env i t0 locdi) in
-              TIfor(None, Some(te), te_list, s), new_env
+              in_loop := false; TIfor(None, Some(te), te_list, s), new_env
     end
 
 
