@@ -22,6 +22,22 @@ type typ =
   (* type de retour * list de type pour les arguments *)
   | Tfct of typ * typ list
 
+(** val typ_to_string : typ -> string *)
+let typ_to_string typ =
+  let rec ty_list acc l =
+    match l with 
+    | [] -> acc
+    | ty::cdr -> ty_list (acc^(aux "" ty)) cdr
+  and aux acc typ =
+    match typ with 
+    | Tint -> acc^("Tint")
+    | Tbool -> acc^("Tbool")
+    | Tvoid -> acc^("Tvoid")
+    | Tptr ty -> (aux ("Tptr "^acc) ty)
+    | Tfct(ty, ty_l) -> acc^("Tfct"^(aux "" ty)^",["^(ty_list "" ty_l)^"]")
+  in (aux "" typ)
+
+
 (* *NULL is possible but warning from gcc*)
 (** Unary operators *)
 type unop = Unot | Ustar | Uamp | Uincr_l | Udecr_l | Uincr_r | Udecr_r | Uplus | Uminus

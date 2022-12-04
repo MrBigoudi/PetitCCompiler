@@ -145,7 +145,7 @@ and type_binop env op e1 e2 loc =
   let t2_type = t2.typ in 
   match op with
   | Logic _ as op -> 
-    begin if not ((equ_type Tvoid t1_type) && equ_type t1_type t2_type)
+    begin if (not (equ_type Tvoid t1_type) && equ_type t1_type t2_type)
        then TEbinop(op, t1, t2), Tint 
     else (handle_error 10 loc)
   end
@@ -312,6 +312,7 @@ and compute_type_dinstr env di t0 =
 
 (** val compute_type_dinstr_var : dmap -> dvar -> typ -> dinstr.loc -> tdinstr * dmap *)
 and compute_type_dinstr_var env v t0 locdi = 
+  (* print_dmap env; *)
   match v with Dvar(typ, ident, exp) ->
     (* check if variable is of type void *)
     if (equ_type typ Tvoid) 
@@ -365,10 +366,9 @@ and compute_type_dfct env fct t0 locdi =
                       (get_param_types cdr (types@[typ]) (idents@[ident]) new_env)
         in let (p_types, new_env) = (get_param_types p_list [] [] env)
           (* adding fun prototype to new env and adding all parameters to new env *)
-          in let fun_typ = Tfct(typ,p_types)
-            in 
-            (* print_dmap new_env;  *)
+          in let fun_typ = Tfct(typ,p_types) in
             let new_env = (add_dmap ident fun_typ new_env)
+          (* in print_dmap new_env; *)
             (* checking return type of the function *)
               in let (tdesci,_) = (compute_type_block new_env dinstr_list typ) (* t0 is now the fun return typ *)
                 in match tdesci with 
@@ -393,6 +393,16 @@ and type_ast parsed_ast =
           let (typ,ident,param_list) = match cur_dfct with Dfct(typ,ident,param_list,_) -> (typ,ident,param_list) in
             let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct typ dummy_loc in
             (check_main_in_env new_env typ ident param_list);
+            (* ajouter typ de f dans global env *)
+            let rec get_fct_type param_list types_list =
+              match param_list with
+              | [] -> Tfct(typ,types_list)
+              | Param(ptyp,_)::cdr -> (get_fct_type cdr (types_list@[ptyp]))
+            in
+            let new_env = 
+                try (add_old_dmap ident (get_fct_type param_list []) new_env) 
+              with _ -> (handle_error 23 dummy_loc)
+            in
             (* (print_dmap new_env); *)
             (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
       in 

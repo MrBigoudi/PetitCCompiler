@@ -32,6 +32,13 @@ let add_dmap id ty doub_map =
     then raise (Environnement_error("id already existing")) 
     else { old_env = doub_map.old_env ; new_env = (Smap.add id ty nenv) }
 
+(** val add_old_dmap : ident -> typ -> dmap -> dmap *)
+let add_old_dmap id ty doub_map =
+  let oldv = doub_map.old_env in
+  if Smap.mem id oldv
+    then raise (Environnement_error("id already existing")) 
+    else { old_env = (Smap.add id ty oldv) ; new_env = doub_map.new_env }
+
 (** val union_dmap : dmap -> env *)
 let union_dmap doub_map =
   let oenv = doub_map.old_env in
@@ -50,12 +57,13 @@ let new_block_dmap doub_map =
 (** val print_dmap : dmap -> unit *)
 let print_dmap doub_map =
   let f key typ =
-    print_string (key^", ")
+    print_string ("key: "^key^", typ: "^typ_to_string typ^"\n")
   in
-  print_string "old env:\n";
+  print_string "\nold env:\n";
   Smap.iter f doub_map.old_env;
   print_string "\nnew env:\n";
   Smap.iter f doub_map.new_env;
+  print_string "\n";
 
 
 
