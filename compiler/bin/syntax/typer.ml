@@ -331,13 +331,13 @@ and compute_type_dinstr_var env v t0 locdi =
         (* adding variable to new env *)
         else 
           match exp with 
-          | None -> TDinstrVar(TDvar(typ, ident, None)), (add_dmap ident typ env)
+          | None -> TDinstrVar(TDvar(typ, ident, None)), (add_new_dmap ident typ env)
           | Some(e) -> 
             let (e_tdesc, e_typ) = (compute_type_expr env e) in
               (* typ x = e; -> test if 'typ' equivalent to type of 'e'*)
               if not (equ_type e_typ typ) 
                 then (handle_error 25 locdi)
-                else TDinstrVar(TDvar(typ, ident, Some({tdesc=e_tdesc; typ=e_typ}))), (add_dmap ident typ env)
+                else TDinstrVar(TDvar(typ, ident, Some({tdesc=e_tdesc; typ=e_typ}))), (add_new_dmap ident typ env)
 
 
 (** val compute_type_dinstr_fct : dmap -> dfct -> typ -> dinstr.loc -> tdinstr * dmap *)
@@ -368,13 +368,13 @@ and compute_type_dfct env fct t0 locdi =
                 if List.mem id idents 
                   then (handle_error 24 locdi)
                   else
-                    let new_env = (add_dmap id typ env) in
+                    let new_env = (add_new_dmap id typ env) in
                       (* adding params to new env *)
                       (get_param_types cdr (types@[typ]) (idents@[ident]) new_env)
         in let (p_types, new_env) = (get_param_types p_list [] [] env)
           (* adding fun prototype to new env and adding all parameters to new env *)
           in let fun_typ = Tfct(typ,p_types) in
-            let new_env = (add_dmap ident fun_typ new_env)
+            let new_env = (add_new_dmap ident fun_typ new_env)
           (* in print_dmap new_env; *)
             (* checking return type of the function *)
               in let (tdesci,_) = (compute_type_block new_env dinstr_list typ) (* t0 is now the fun return typ *)
@@ -389,8 +389,8 @@ and type_ast parsed_ast =
 	(* create new env *)
 	let (env:dmap) = { old_env=Smap.empty; new_env=Smap.empty} in
   (* add void* malloc(int n) and int putchar(int c) in the env *)
-  let env = add_dmap "malloc" (Tfct(Tptr(Tvoid), [Tint])) env in
-  let env = add_dmap "putchar" (Tfct(Tint, [Tint]))  env in
+  let env = add_new_dmap "malloc" (Tfct(Tptr(Tvoid), [Tint])) env in
+  let env = add_new_dmap "putchar" (Tfct(Tint, [Tint]))  env in
   let env = new_block_dmap env in
     let dfct_list = match parsed_ast with FileInclude(l) -> l in
       let rec compute_type_dfct_list dfct_list new_env tdfct_list =
@@ -410,8 +410,9 @@ and type_ast parsed_ast =
                 try (add_old_dmap ident (get_fct_type param_list []) new_env) 
               with _ -> (handle_error 23 dummy_loc)
             in
-            (* (print_dmap new_env); *)
-            (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
+            let new_env = {old_env = new_env.old_env ; new_env = Smap.empty} in
+              (* (print_dmap new_env); *)
+              (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
       in 
         let typed_ast = (compute_type_dfct_list dfct_list env []) in
           if not (!main_is_present) then (handle_error 0 dummy_loc)

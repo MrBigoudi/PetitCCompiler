@@ -25,8 +25,8 @@ let in_new_env_dmap id doub_map =
   let nenv = doub_map.new_env in 
   Smap.mem id nenv
 
-(** val add_dmap : ident -> typ -> dmap -> dmap ->  *)
-let add_dmap id ty doub_map =
+(** val add_new_dmap : ident -> typ -> dmap -> dmap ->  *)
+let add_new_dmap id ty doub_map =
   let nenv = doub_map.new_env in
   if Smap.mem id nenv 
     then raise (Environnement_error("id already existing")) 

@@ -27,14 +27,14 @@ let typ_to_string typ =
   let rec ty_list acc l =
     match l with 
     | [] -> acc
-    | ty::cdr -> ty_list (acc^(aux "" ty)) cdr
+    | ty::cdr -> ty_list (acc^" "^(aux "" ty)) cdr
   and aux acc typ =
     match typ with 
     | Tint -> acc^("Tint")
     | Tbool -> acc^("Tbool")
     | Tvoid -> acc^("Tvoid")
     | Tptr ty -> (aux ("Tptr "^acc) ty)
-    | Tfct(ty, ty_l) -> acc^("Tfct"^(aux "" ty)^",["^(ty_list "" ty_l)^"]")
+    | Tfct(ty, ty_l) -> acc^("Tfct ("^(aux "" ty)^",["^(ty_list "" ty_l)^" ])")
   in (aux "" typ)
 
 
