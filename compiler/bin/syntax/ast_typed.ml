@@ -47,6 +47,18 @@ let new_block_dmap doub_map =
     { old_env = oenv; new_env = nenv }
 
 
+(** val print_dmap : dmap -> unit *)
+let print_dmap doub_map =
+  let f key typ =
+    print_string (key^", ")
+  in
+  print_string "old env:\n";
+  Smap.iter f doub_map.old_env;
+  print_string "\nnew env:\n";
+  Smap.iter f doub_map.new_env;
+
+
+
 (** Expressions *)
 type texpression = {
   tdesc: tdesc;

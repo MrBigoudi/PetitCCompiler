@@ -162,9 +162,8 @@ and type_binop env op e1 e2 loc =
     begin
       match t1_type with 
       | t1_type when equ_type t1_type t2_type -> TEbinop(op, t1, t2), Tint
-      | t1_type when equ_type t1_type Tint && is_ptr t2_type -> TEbinop(op, t1, t2), t2_type
-      | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
       | Tptr(_) when t1_type = t2_type -> TEbinop(op, t1, t2), Tint
+      | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
       | _ -> (handle_error 10 loc)
     end
   | Arith(_) as op -> 
@@ -189,6 +188,7 @@ and type_assign env e1 e2 loc =
 (** val type_call : dmap -> ident -> expression list -> expression.loc -> tdesc * typ *)
 and type_call env id e_list loc = 
   (* test if function exists in env *)
+  (* print_string "call\n"; *)
   let fct_typ = begin
     try search_dmap id env with _ -> (handle_error 14 loc);
   end in
@@ -338,6 +338,7 @@ and compute_type_dinstr_fct env fct t0 locdi =
 
 (** val compute_type_dfct : dmap -> dfct -> typ -> dinstr.loc -> tdfct * dmap *)
 and compute_type_dfct env fct t0 locdi = 
+  (* print_string "dfct\n"; *)
   match fct with
     Dfct (typ, ident, p_list, Block(dinstr_list)) ->
     (* check if standard function *)
@@ -352,19 +353,22 @@ and compute_type_dfct env fct t0 locdi =
           match p_list with
           | [] -> (types, env)
           | p::cdr -> 
+            (* print_dmap env; *)
             let (typ,id) = match p with Param(typ,id) -> (typ,id)
               (* testing if two params have same name *)
               in 
                 if List.mem id idents 
                   then (handle_error 24 locdi)
                   else
-                    let new_env = (add_dmap ident typ env) in
+                    let new_env = (add_dmap id typ env) in
                       (* adding params to new env *)
                       (get_param_types cdr (types@[typ]) (idents@[ident]) new_env)
         in let (p_types, new_env) = (get_param_types p_list [] [] env)
           (* adding fun prototype to new env and adding all parameters to new env *)
           in let fun_typ = Tfct(typ,p_types)
-            in let new_env =  (add_dmap ident fun_typ new_env)
+            in 
+            (* print_dmap new_env;  *)
+            let new_env = (add_dmap ident fun_typ new_env)
             (* checking return type of the function *)
               in let (tdesci,_) = (compute_type_block new_env dinstr_list typ) (* t0 is now the fun return typ *)
                 in match tdesci with 
@@ -380,6 +384,7 @@ and type_ast parsed_ast =
   (* add void* malloc(int n) and int putchar(int c) in the env *)
   let env = add_dmap "malloc" (Tfct(Tptr(Tvoid), [Tint])) env in
   let env = add_dmap "putchar" (Tfct(Tint, [Tint]))  env in
+  let env = new_block_dmap env in
     let dfct_list = match parsed_ast with FileInclude(l) -> l in
       let rec compute_type_dfct_list dfct_list new_env tdfct_list =
         match dfct_list with 
@@ -388,6 +393,7 @@ and type_ast parsed_ast =
           let (typ,ident,param_list) = match cur_dfct with Dfct(typ,ident,param_list,_) -> (typ,ident,param_list) in
             let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct typ dummy_loc in
             (check_main_in_env new_env typ ident param_list);
+            (* (print_dmap new_env); *)
             (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
       in 
         let typed_ast = (compute_type_dfct_list dfct_list env []) in
