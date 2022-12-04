@@ -273,21 +273,33 @@ case $option in
     "-3" )
         partie3;;
     "-v1" )
-        verbose=1
+        verbose=1;
         partie1;;
     "-v2" )
-        verbose=1
+        verbose=1;
         partie2;;
     "-v3" )
-        verbose=1
+        verbose=1;
         partie3;;
     "-1b" )
-	bonus=1;
-	partie1;;
+	    bonus=1;
+	    partie1;;
     "-2b" )
     	bonus=1;
         partie2;;
     "-3b" )
+    	bonus=1;
+        partie3;;
+    "-v1b" )
+        verbose=1;
+	    bonus=1;
+	    partie1;;
+    "-v2b" )
+        verbose=1;
+    	bonus=1;
+        partie2;;
+    "-v3b" )
+        verbose=1;
     	bonus=1;
         partie3;;
     "-all" )
@@ -295,6 +307,17 @@ case $option in
     	partie2;
     	partie3;;
     "-allb" )
+        bonus=1;
+    	partie1;
+    	partie2;
+    	partie3;;
+    "-vall" )
+        verbose=1;
+    	partie1;
+    	partie2;
+    	partie3;;
+    "-vallb" )
+        verbose=1;
         bonus=1;
     	partie1;
     	partie2;
@@ -307,11 +330,20 @@ case $option in
         echo "-1      : tester la partie 1"
         echo "-2      : tester la partie 2"
         echo "-3      : tester la partie 3"
+        echo "-1b     : tester la partie 1 en comptant le bonus"
+        echo "-2b     : tester la partie 2 en comptant le bonus"
+        echo "-3b     : tester la partie 3 en comptant le bonus"
         echo "-v1     : tester la partie 1 (verbose)"
         echo "-v2     : tester la partie 2 (verbose)"
         echo "-v3     : tester la partie 3 (verbose)"
+        echo "-v1b    : tester la partie 1 en comptant le bonus (verbose)"
+        echo "-v2b    : tester la partie 2 en comptant le bonus (verbose)"
+        echo "-v3b    : tester la partie 3 en comptant le bonus (verbose)"
         echo "-gcc    : tester avec gcc"
-        echo "-all    : tout tester";;
+        echo "-all    : tout tester"
+        echo "-allb   : tout tester en comptant le bonus"
+        echo "-vall   : tout tester (verbose)"
+        echo "-vallb  : tout tester en comptant le bonus (verbose)";;
 
 esac
 echo

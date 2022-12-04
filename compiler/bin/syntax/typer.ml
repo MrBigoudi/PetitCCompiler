@@ -351,15 +351,17 @@ and compute_type_dinstr_var env v (*t0*) locdi =
 
 (** val compute_type_dinstr_fct : dmap -> dfct -> typ -> tdinstr * dmap *)
 and compute_type_dinstr_fct env fct (*t0*) = 
-  let t_dfct, env = (compute_type_dfct env fct (*t0*)) in TDinstrFct t_dfct, env
+  (* print_dmap env; *)
+  let t_dfct, env = (compute_type_dfct env fct (*t0*) false) (* false for non global function declaration *)
+    in TDinstrFct t_dfct, env
 
-(** val compute_type_dfct : dmap -> dfct -> typ -> tdfct * dmap *)
-and compute_type_dfct env fct (*t0*) = 
+(** val compute_type_dfct : dmap -> dfct -> typ -> bool -> tdfct * dmap *)
+and compute_type_dfct env fct (*t0*) is_global = 
   let fct, locdi = fct.descdfct, fct.locdfct in
   match fct with
     Dfct (typ, ident, p_list, Block(dinstr_list)) ->
     (* check if standard function *)
-    if (String.equal ident "malloc" || String.equal ident "putchar") then (handle_error 26 locdi)
+    if (is_global && (String.equal ident "malloc" || String.equal ident "putchar")) then (handle_error 26 locdi)
     (* check if function name already used *)
     else if(in_new_env_dmap ident env)
       then (handle_error 22 locdi)
@@ -374,14 +376,19 @@ and compute_type_dfct env fct (*t0*) =
               in
                 (* adding params to new env *)
                 (get_param_types cdr (types@[typ]) new_env)
-        in let (p_types, new_env) = (get_param_types p_list [] env)
+        in let (p_types, new_env) = (get_param_types p_list [] (new_block_dmap env))
           (* adding fun prototype to new env and adding all parameters to new env *)
           in let fun_typ = Tfct(typ,p_types) in
             let new_env = try (add_new_dmap ident fun_typ new_env) with _ -> (handle_error 25 locdi)
             (* checking return type of the function *)
-              in let (tdesci,_) = (compute_type_block new_env dinstr_list typ true) (* t0 is now the fun return typ *)
+              in
+                (* new environment with only the function declaration *)
+                let new_env_without_params = try (add_new_dmap ident fun_typ env) with _ -> (handle_error 25 locdi)
+                in
+                (* print_dmap new_env; *)
+                let (tdesci,_) = (compute_type_block new_env dinstr_list typ true) (* t0 is now the fun return typ *)
                 in match tdesci with 
-                  | TIblock t_block -> TDfct(typ, ident, p_list, t_block), new_env
+                  | TIblock t_block -> TDfct(typ, ident, p_list, t_block), new_env_without_params
                   | _ -> assert false (* should not end up here *)
 
           
@@ -400,7 +407,7 @@ and type_ast parsed_ast =
         | [] -> TFileInclude(tdfct_list)
         | cur_dfct::cdr -> 
           let (typ,ident,param_list) = match cur_dfct with {descdfct=Dfct(typ,ident,param_list,_) ; locdfct=_} -> (typ,ident,param_list) in
-            let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct (*typ*) in
+            let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct (*typ*) true in (* true for global fct definition *)
             (check_main_in_env new_env typ ident param_list);
             (* add type of f in global env *)
             let rec get_fct_type param_list types_list =
