@@ -101,19 +101,22 @@ let rec type_expr env e =
 
 (** val compute_type_expr : dmap -> expression -> tdesc * typ *)
 and compute_type_expr env e = 
+  print_dmap env;
   let loc = e.loc in
   match e.desc with 
   | Econst const -> type_const const
   | Evar var -> (type_var var env loc)
   | Eunop (op, e) -> (type_unop env op e loc)
-  | Ebinop (op, e1, e2) -> (type_binop env op e1 e2 loc) (* addition of pointers dont work as expected, be more careful ! *)
+  | Ebinop (op, e1, e2) -> (type_binop env op e1 e2 loc)
   | Eassign (e1, e2) -> (type_assign env e1 e2 loc)
   | Ecall (id, e_list) -> (type_call env id e_list loc)
   | Esizeof ty -> if equ_type ty Tvoid then (handle_error 13 loc) else TEsizeof(ty), Tint
 
 
 (** val type_const : const -> tdesc * typ *)
-and type_const const = match const with
+and type_const const = 
+  print_string "const\n";
+  match const with
   | Int n -> TEconst(Int(n)), Tint
   | True -> TEconst(True), Tbool
   | False -> TEconst(False), Tbool
@@ -122,6 +125,7 @@ and type_const const = match const with
 
 (** val type_var : ident -> dmap -> expression.loc -> tdesc * typ *)
 and type_var var env loc = 
+  (* print_dmap env; *)
   try TEvar var, (search_dmap var env)
     with _ -> (handle_error 9 loc)
 
@@ -185,6 +189,7 @@ and type_binop env op e1 e2 loc =
 
 (** val type_assign : dmap -> expression -> expression -> expression.loc -> tdesc * typ *)
 and type_assign env e1 e2 loc =
+  (* print_dmap env; *)
   let te1 = type_expr env e1 in
   let te2 = type_expr env e2 in
   if (is_lvalue e1) && (equ_type te1.typ te2.typ) then TEassign(te1, te2), te1.typ else 
@@ -234,7 +239,7 @@ and compute_type_instr (env:dmap) ist t0 locdi =
   | Iempt -> TIempt, env
   | Ibreak -> if !in_loop then TIbreak, env else (handle_error 29 locdi)
   | Icontinue -> if !in_loop then TIcontinue, env else (handle_error 30 locdi)
-  | Iexpr e -> TIexpr (type_expr env e), env
+  | Iexpr e -> (*print_string "iexpr\n";*) TIexpr (type_expr env e), env
   | Iret None -> if t0 = Tvoid 
                     then TIret(None), env 
                     else (handle_error 18 locdi)
