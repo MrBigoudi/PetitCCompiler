@@ -20,7 +20,7 @@ PARSER := $(SYNTAX_FOLDER)/parser.mly
 
 # TARGETS
 TARGET    := main.exe
-COMPILER  := petitCCompiler.exe
+COMPILER  := petitc
 TEST      := test_cpy.sh
 TEST_FLAGS := -v1
 
