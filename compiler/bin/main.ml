@@ -3,17 +3,20 @@
 open Format
 open Syntax
 open Lexing
+open Typer
 
 (** Print the compiler usage *)
 let usage = "usage: petitCCompiler [options] file.c"
 
 (** A compiler option *)
-let parse_only = ref true
+let parse_only = ref false
+let type_only = ref false
 
 (** The option list*)
 let spec =
   [
     "--parse-only", Arg.Set parse_only, "  stop after parsing";
+    "--type-only", Arg.Set type_only, " stop after typing";
   ]
 
 (** Check if the file given as argument seems correct *)
@@ -40,26 +43,35 @@ let () =
   let c = open_in file in
   let lb = Lexing.from_channel c in
     try
+      (* parsing *)
+      let parsed_ast = Parser.file Lexer.token lb in
       begin
-        ignore(Parser.file Lexer.token lb);
         close_in c;
-        if !parse_only 
-          then exit 0
-          else failwith "Typage"
+        if !parse_only then exit 0 (* parse only *)
+          else 
+            begin
+              ignore (Typer.type_ast parsed_ast);
+              if !type_only then exit 0 (* type only *)
+                else failwith "todo production de code"
+            end 
       end
     with
       | Lexer.Lexing_error(s,token) ->
-        report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
-        if(token<>"")
-          then 
-            Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s -> @{<blue>%s @}@." s token
-          else
-            Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s@." s;
-        exit 1
+          report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
+          if(token<>"")
+            then 
+              Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s -> @{<blue>%s @}@." s token
+            else
+              Ocolor_format.eprintf "\t@{<red>Lexical error @}: %s@." s;
+          exit 1
       | Parser.Error ->
-        report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
-        Ocolor_format.eprintf "\tsyntax error @.";
-        exit 1
+          report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
+          Ocolor_format.eprintf "\t@{<red>Syntax error @}@.";
+          exit 1
+      | Typer.Typing_error(s, loc_err) ->
+          report loc_err;
+          Ocolor_format.eprintf "\t@{<red>Typing error @}: %s@." s;
+          exit 1
       | e ->
-        Ocolor_format.eprintf "Anomaly: %s\n@." (Printexc.to_string e);
-        exit 2
+          Ocolor_format.eprintf "Anomaly: %s\n@." (Printexc.to_string e);
+          exit 2

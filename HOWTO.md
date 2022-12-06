@@ -36,8 +36,17 @@ You can check independently the `syntax correctness`, the `typing correctness` a
 |v1               | To test the syntax correctness in verbose mode |
 |v2               | To test the typing correctness in verbose mode |
 |v3               | To test the code production in verbose mode |
+|1b               | To test the syntax correctness with nested functions |
+|2b               | To test the typing correctness with nested functions |
+|3b               | To test the code production with nested functions |
+|v1b              | To test the syntax correctness in verbose mode with nested functions |
+|v2b              | To test the typing correctness in verbose mode with nested functions |
+|v3b              | To test the code production in verbose mode with nested functions |
 |gcc              | To run gcc on the samples |
-|all              | To test the syntax correctness, the typing correctness and the code production|
+|all              | To test the syntax correctness, the typing correctness and the code production |
+|vall             | To test the syntax correctness, the typing correctness and the code production in verbose mode |
+|allb             | To test the syntax correctness, the typing correctness and the code production with nested functions |
+|vallb            | To test the syntax correctness, the typing correctness and the code production in verbose mode with nested functions |
 
 To run the tests as you want, you can use the command:
 ```sh
@@ -60,7 +69,7 @@ You can use several options for the compiler:
 | &lt;option&gt;  | description |
 | --------------: | ----------: |
 | --parse-only    | The compiler will stop after parsing the input file |
-| --type-only     | The compiler will stop after parsing the input file and checking it sematically |
+| --type-only     | The compiler will stop after parsing the input file and checking it semantically |
 
 ```sh
 $ ./petitCCompiler <option> <inputFile>.c

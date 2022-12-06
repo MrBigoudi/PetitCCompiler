@@ -34,7 +34,6 @@
         List.iter (fun (key, token) -> Hashtbl.add h key token) kwd_table;
         (* get the value corresponding to key *)
         fun key ->
-            let key = String.lowercase_ascii key in 
             (* if not a keyword return an ident *)
             try Hashtbl.find h key with _ -> IDENT key
 
@@ -76,7 +75,7 @@ let include = "#include"space+'<'(character # '>')*">\n"
 (** Identifies tokens *)
 rule token = parse
     (* manage comments *)
-    | "//" [^ '\n']* { new_line lexbuf; token lexbuf }
+    | "//" [^ '\n']* { token lexbuf }
     | "//" [^ '\n']* eof { EOF }
     | "/*" { comment lexbuf }
     

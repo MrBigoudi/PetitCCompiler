@@ -51,7 +51,11 @@ file:
   EOF { FileInclude fctl }
 ;
 
+
 decl_fct:
+  | d = descdfct { { descdfct = d ; locdfct = $startpos, $endpos } }
+
+descdfct:
   ty = typ 
   id = IDENT
   LPAR pl = separated_list(COMMA, param) RPAR
@@ -118,6 +122,10 @@ block:
 ;
 
 decl_instr:
+  | d = descdi { { descdi = d ; locdi = $startpos, $endpos } }
+
+descdi:
+  | dfct = decl_fct { DinstrFct(dfct) }
   | dv = decl_var SEMI_COLON { DinstrVar(dv) }
   | ist = instr { Dinstr(ist) }
 ;

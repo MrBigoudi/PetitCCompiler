@@ -3,6 +3,9 @@
 (** Identifiers *)
 type ident = string
 
+(** Localisation in file *)
+type loc = Lexing.position * Lexing.position 
+
 (** Constants *)
 type const = 
   | Int of int
@@ -16,6 +19,25 @@ type typ =
   | Tbool
   | Tvoid
   | Tptr of typ
+  (* type de retour * list de type pour les arguments *)
+  | Tfct of typ * typ list
+
+(** val typ_to_string : typ -> string *)
+let typ_to_string typ =
+  let rec ty_list acc l =
+    match l with 
+    | [] -> acc
+    | ty::[] -> ty_list (acc^" "^(aux "" ty)) []
+    | ty::cdr -> ty_list (acc^" "^(aux "" ty)^",") cdr
+  and aux acc typ =
+    match typ with 
+    | Tint -> acc^("Tint")
+    | Tbool -> acc^("Tbool")
+    | Tvoid -> acc^("Tvoid")
+    | Tptr ty -> (aux acc ty)^"*"
+    | Tfct(ty, ty_l) -> acc^("( "^(aux "" ty)^", ["^(ty_list "" ty_l)^" ] )")
+  in (aux "" typ)
+
 
 (* *NULL is possible but warning from gcc*)
 (** Unary operators *)
@@ -38,7 +60,7 @@ type param = Param of typ * ident
 (** Expressions *)
 type expression = {
   desc: desc;
-  loc: Lexing.position * Lexing.position
+  loc: loc
 }
 
 (** Description of expressions *)
@@ -55,12 +77,21 @@ and desc =
 type dvar = Dvar of typ * ident * expression option
 
 (** Instruction declarations *)
-and dinstr = 
+and dinstr = {
+  descdi: descdi;
+  locdi: loc
+}
+and descdi = 
+  | DinstrFct of dfct
   | DinstrVar of dvar
   | Dinstr of instr
 
 (** Function declarations *)
-and dfct = Dfct of typ * ident * param list * block
+and dfct = {
+  descdfct: descdfct;
+  locdfct: loc
+}
+and descdfct = Dfct of typ * ident * param list * block
 
 (** Instruction blocks *)
 and block = Block of dinstr list
