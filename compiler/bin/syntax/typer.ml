@@ -5,8 +5,8 @@ open Ast_typed
 exception Typing_error of string * loc
 
 (** dummy location for temporary tests 
-    val dummy_loc -> loc *)
-let dummy_loc = Lexing.dummy_pos, Lexing.dummy_pos
+    val not_found_loc -> loc *)
+let not_found_loc = Lexing.dummy_pos, Lexing.dummy_pos
 
 (** handle a typing error 
     val handle_error : int -> loc -> unit *)
@@ -67,9 +67,9 @@ let check_main_in_env env typ id param_list =
           begin
             match param_list with 
               | [] -> (main_is_present := true)
-              | _ -> (handle_error 27 dummy_loc)
+              | _ -> (handle_error 27 not_found_loc)
           end
-        | _ -> (handle_error 28 dummy_loc)
+        | _ -> (handle_error 28 not_found_loc)
     with _ -> ()
 
 
@@ -406,7 +406,7 @@ and type_ast parsed_ast =
         match dfct_list with 
         | [] -> TFileInclude(tdfct_list)
         | cur_dfct::cdr -> 
-          let (typ,ident,param_list) = match cur_dfct with {descdfct=Dfct(typ,ident,param_list,_) ; locdfct=_} -> (typ,ident,param_list) in
+          let (typ,ident,param_list,loc) = match cur_dfct with {descdfct=Dfct(typ,ident,param_list,_) ; locdfct=loc} -> (typ,ident,param_list,loc) in
             let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct (*typ*) true in (* true for global fct definition *)
             (check_main_in_env new_env typ ident param_list);
             (* add type of f in global env *)
@@ -417,11 +417,11 @@ and type_ast parsed_ast =
             in
             let new_env = 
                 try (add_old_dmap ident (get_fct_type param_list []) new_env) 
-              with _ -> (handle_error 23 dummy_loc)
+              with _ -> (handle_error 23 loc)
             in
             let new_env = {old_env = new_env.old_env ; new_env = Smap.empty} in
               (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
       in 
         let typed_ast = (compute_type_dfct_list dfct_list env []) in
-          if not (!main_is_present) then (handle_error 0 dummy_loc)
+          if not (!main_is_present) then (handle_error 0 not_found_loc)
           else typed_ast
