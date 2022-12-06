@@ -32,27 +32,35 @@ all: help
 
 ## Build the compiler
 compiler: clean
-	@echo -e "\n********** Building compiler **********\n"
+	@echo ""
+	@echo "********** Building compiler **********"
+	@echo ""
 	dune build
 	@ln -s $(BIN_FOLDER)/$(TARGET) $(COMPILER)
 
 
 ## Build the compiler and run the tests : use TEST_FLAGS=-<option> to chose which test to run
 tests: compiler
-	@echo -e "\n********** Running tests **********\n"
+	@echo ""
+	@echo "********** Running tests **********"
+	@echo ""
 	@./$(TEST_FOLDER)/$(TEST) $(TEST_FLAGS) $(COMPILER)
 
 
 ## Test if the parser generates conflicts
 explain:
-	@echo -e "\n********** Checking parser conflicts **********\n"
+	@echo ""
+	@echo "********** Checking parser conflicts **********"
+	@echo ""
 	menhir --base /tmp/parser --dump --explain $(PARSER)
 	@cat /tmp/parser.conflicts
 
 
 ## Clean tests produced files
 clean_tests:
-	@echo -e "\n********** Cleaning tests **********\n"
+	@echo ""
+	@echo "********** Cleaning tests **********"
+	@echo ""
 ifneq ("$(wildcard $(TEST_FOLDER)/a.out)","")
 	@rm $(TEST_FOLDER)/*.o
 	@rm $(TEST_FOLDER)/*out*
@@ -61,7 +69,9 @@ endif
 
 ## Delete build files and executables
 clean: clean_tests
-	@echo -e "\n********** Cleaning project **********\n"
+	@echo ""
+	@echo "********** Cleaning project **********"
+	@echo ""
 	dune clean
 ifneq ("$(wildcard $(COMPILER))","")
 	@rm $(COMPILER)

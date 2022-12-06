@@ -68,9 +68,13 @@ let () =
           report (Lexing.lexeme_start_p lb, Lexing.lexeme_end_p lb);
           Ocolor_format.eprintf "\t@{<red>Syntax error @}@.";
           exit 1
-      | Typer.Typing_error(s, loc_err) ->
+      | Typer.Typing_error(s, loc_err, stropt) ->
           report loc_err;
-          Ocolor_format.eprintf "\t@{<red>Typing error @}: %s@." s;
+          let info = match stropt with
+            | None -> ""
+            | Some(info) -> "'"^info^"'" 
+            in
+              Ocolor_format.eprintf "\t@{<red>Typing error @}: @{<blue>%s@} %s@." info s;
           exit 1
       | e ->
           Ocolor_format.eprintf "Anomaly: %s\n@." (Printexc.to_string e);
