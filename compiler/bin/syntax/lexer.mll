@@ -75,7 +75,7 @@ let include = "#include"space+'<'(character # '>')*">\n"
 (** Identifies tokens *)
 rule token = parse
     (* manage comments *)
-    | "//" [^ '\n']* { new_line lexbuf; token lexbuf }
+    | "//" [^ '\n']* { token lexbuf }
     | "//" [^ '\n']* eof { EOF }
     | "/*" { comment lexbuf }
     
