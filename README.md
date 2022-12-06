@@ -33,7 +33,7 @@ Check the [howto](HOWTO.md) file.
 ### Ast
 
 We choose to decorate our abstract syntax tree with the locations of the tokens (from menhir) to display error locations. We only decorated the expressions, the intructions' declarations and functions' declarations to retrieve easily the position informations anywhere in the AST. This makes it easy to return a location, but this location may be to broad. A more precise pinpoint could be achieved. We could also add a visualisation of the error similarly to what `gcc` does (as well as suggestion of a correction of the error).
-We added the type `fct`. This aims at associate a ID to a function with the returned type of the function as well as the types of each parameters. 
+We added the type `fct` to represent fonctions inside our [environments](#typer). This aims at associate a ID to a function with the returned type of the function as well as the types of each parameters. 
 
 
 ### Lexer
