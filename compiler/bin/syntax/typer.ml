@@ -16,33 +16,33 @@ let handle_error err_num pos stropt =
     | 0, None  -> "Undefined reference to `main'"
     | 1, None  -> "Invalid use of void expression"
     | 2, None  -> "Void value not ignored as it ought to be"
-    | 3, None  -> "Invalid type of unary '*'"
+    | 3, None  -> "Invalid type of unary `*'"
     | 4, Some(s) -> "lvalue required as "^s^"operand"
     | 7, Some(s)  -> "Wrong type argument to unary "^s
     | 8, Some(s)  -> "Wrong type argument to unary "^s
     | 9, None  -> "Use of undeclared identifier"
-    | 10, None -> "Invalid operands to binary expression"
+    | 10, Some(s) -> "Invalid operands to binary expression "^s
     | 11, None -> "lvalue required as left operand of assignment"
     | 12, None -> "Incompatible types for assignation"
     | 13, None -> "The void shall have no size..."
-    | 14, None -> "Implicit declaration of function"
-    | 15, None -> "Too few arguments to function call"
-    | 16, None -> "Too many arguments to function call"
-    | 17, None -> "Passing expressions to parameter of incompatible type"
+    | 14, Some(s) -> "Implicit declaration of function "^s
+    | 15, Some(s) -> "Too few arguments to function call "^s
+    | 16, Some(s) -> "Too many arguments to function call "^s
+    | 17, Some(s) -> "Passing expressions to parameter of incompatible type in "^s
     | 18, None -> "Non-void function should return a value"
-    | 19, None -> "This function does not return a value of the correct type" (* made up error message *)
-    | 20, None -> "Expected expression"
+    | 19, None -> "Function does not return a value of the correct type" 
+    | 20, Some(s) -> "Expected expression in "^s^" block"
     | 21, None -> "Statement requires expression of scalar type"
-    | 22, None -> "Variable has incomplete type"
-    | 23, None -> "Redefinition of identifier"
-    | 24, None -> "Redefinition of parameter"
-    | 25, None -> "Incompatible conversion"
-    | 26, None -> "Can't redefine stdandard function" (* made up error message *)
-    | 27, None -> "Main function should not take arguments" (* made up error message *)
-    | 28, None -> "Main function should return an int" (* made up error message *)
+    | 22, Some(s) -> "Variable "^s^" has incomplete type"
+    | 23, Some(s) -> "Redefinition of identifier "^s
+    | 24, Some(s) -> "Redefinition of parameter "^s
+    | 25, Some(s) -> "Incompatible conversion "^s
+    | 26, Some(s) -> "Can't redefine stdandard function "^s 
+    | 27, None -> "Main function should not take arguments" 
+    | 28, None -> "Main function should return an int" 
     | 29, None -> "Break statement not within a loop"
     | 30, None -> "Continue statement not within a loop"
-    | 31, None -> "Called object which is not a function or function pointer"
+    | 31, Some(s) -> "Called object "^s^"which is not a function or function pointer"
     | _, _ -> "Unkown error"
   in raise (Typing_error(error, pos))
 
@@ -149,16 +149,15 @@ and type_binop env op e1 e2 loc =
   | Logic _ as op -> 
     begin if (not (equ_type Tvoid t1_type) && equ_type t1_type t2_type)
        then TEbinop(op, t1, t2), Tint 
-    else (handle_error 10 loc None)
+    else (handle_error 10 loc (Some(op_to_string op)))
   end
-  (* TODO + - with pointers *)
   | Arith(Badd)  as op -> 
     begin
       match t1_type with 
         | t1_type when (not (is_ptr t1_type)) && (equ_type t1_type t2_type) -> TEbinop(op, t1, t2), Tint 
         | t1_type when equ_type t1_type Tint && is_ptr t2_type -> TEbinop(op, t1, t2), t2_type
         | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
-        | _ -> (handle_error 10 loc None)
+        | _ -> (handle_error 10 loc (Some(op_to_string op)))
     end
   | Arith(Bsub) as op -> 
     begin
@@ -166,16 +165,16 @@ and type_binop env op e1 e2 loc =
       | t1_type when equ_type t1_type t2_type -> TEbinop(op, t1, t2), Tint
       | Tptr(_) when t1_type = t2_type -> TEbinop(op, t1, t2), Tint
       | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
-      | _ -> (handle_error 10 loc None)
+      | _ -> (handle_error 10 loc (Some(op_to_string op)))
     end
   | Arith(_) as op -> 
     if equ_type t1_type t2_type
       then TEbinop(op, t1, t2), Tint 
-      else (handle_error 10 loc None)
+      else (handle_error 10 loc (Some(op_to_string op)))
   | AndOr(_) as op -> 
     begin if (equ_type Tint t1_type && equ_type t1_type t2_type) 
       then TEbinop(op, t1, t2), Tint 
-      else (handle_error 10 loc None)
+      else (handle_error 10 loc (Some(op_to_string op)))
     end
 
 
@@ -192,7 +191,7 @@ and type_call env id e_list loc =
   (* test if function exists in env *)
   let fct_typ = 
     begin
-      try search_dmap id env with _ -> (handle_error 14 loc None);
+      try search_dmap id env with _ -> (handle_error 14 loc (Some(id)));
     end 
   in
     match fct_typ with 
@@ -201,17 +200,17 @@ and type_call env id e_list loc =
         let rec test_param_fun_call e_list param_typ_list te_list =
           match (e_list,param_typ_list) with
           | ([],[]) -> TEcall(id, te_list), ret_typ
-          | ([],_) -> (handle_error 15 loc None) (* not enough params *)
-          | (_,[]) -> (handle_error 16 loc None) (* too many params *)
+          | ([],_) -> (handle_error 15 loc (Some(id))) (* not enough params *)
+          | (_,[]) -> (handle_error 16 loc (Some(id))) (* too many params *)
           | (e::e_cdr), (p::p_cdr) ->
             let te = type_expr env e in
               (* test if compatible type *) 
               if not (equ_type te.typ p) 
-                then (handle_error 17 e.loc None) (* incompatible types *)
+                then (handle_error 17 e.loc (Some(id))) (* incompatible types *)
                 (* recursive call *)
                 else (test_param_fun_call e_cdr p_cdr (te_list@[te]))
           in (test_param_fun_call e_list param_typ [])
-      | _ -> handle_error 31 loc None
+      | _ -> handle_error 31 loc (Some(id))
 
 
 
@@ -245,7 +244,7 @@ and compute_type_instr (env:dmap) ist t0 locdi =
 and compute_type_if env e i1 i2 t0 locdi =
   let te = (type_expr env e) in
     if (equ_type Tvoid (te.typ)) 
-      then (handle_error 20 locdi None)
+      then (handle_error 20 locdi (Some("if")))
     else 
       let ti1 = (type_instr env i1 t0 locdi) in
       let ti2 = (type_instr env i2 t0 locdi) in
@@ -256,7 +255,7 @@ and compute_type_while env e i t0 locdi =
   in_loop := true;
   let te = (type_expr env e) in
       if(equ_type Tvoid (te.typ))
-        then (handle_error 20 locdi None)
+        then (handle_error 20 locdi (Some("while")))
     else 
       let ti = (type_instr env i t0 locdi)in (in_loop := false ; TIwhile(te, ti), env)
 
@@ -278,7 +277,7 @@ and compute_type_for env dvar e elist i t0 locdi =
     (* for(d;e;l) *)
     | Some(d) -> match compute_type_dinstr_var (new_block_dmap env) d (*t0*) locdi with (* creating new empty block env for the for loop *)
       | (TDinstrVar(tdvar),new_env) -> Some(tdvar), new_env
-      | _ -> handle_error 20 locdi None
+      | _ -> handle_error 20 locdi (Some("for"))
   in 
     begin
       match e with 
@@ -329,11 +328,11 @@ and compute_type_dinstr_var env v (*t0*) locdi =
   match v with Dvar(typ, ident, exp) ->
     (* check if variable is of type void *)
     if (equ_type typ Tvoid) 
-      then (handle_error 22 locdi None) 
+      then (handle_error 22 locdi (Some(ident))) 
       else
       (* check if name already used *)
       if (in_new_env_dmap ident env) 
-        then (handle_error 23 locdi None) 
+        then (handle_error 23 locdi (Some(ident))) 
         (* adding variable to new env *)
         else 
           match exp with 
@@ -342,7 +341,7 @@ and compute_type_dinstr_var env v (*t0*) locdi =
             let (e_tdesc, e_typ) = (compute_type_expr env e) in
               (* typ x = e; -> test if 'typ' equivalent to type of 'e'*)
               if not (equ_type e_typ typ) 
-                then (handle_error 25 locdi None)
+                then (handle_error 25 locdi (Some(ident)))
                 else TDinstrVar(TDvar(typ, ident, Some({tdesc=e_tdesc; typ=e_typ}))), (add_new_dmap ident typ env)
 
 
@@ -358,10 +357,10 @@ and compute_type_dfct env fct (*t0*) is_global =
   match fct with
     Dfct (typ, ident, p_list, Block(dinstr_list)) ->
     (* check if standard function *)
-    if (is_global && (String.equal ident "malloc" || String.equal ident "putchar")) then (handle_error 26 locdi None)
+    if (is_global && (String.equal ident "malloc" || String.equal ident "putchar")) then (handle_error 26 locdi (Some(ident)))
     (* check if function name already used *)
     else if(in_new_env_dmap ident env)
-      then (handle_error 22 locdi None)
+      then (handle_error 22 locdi (Some(ident)))
       else
         (* getting type of all parameters and the new env with these parameters *)
         (* val get_param_types : param list -> typ list -> dmap -> typ list * dmap *)
@@ -369,18 +368,18 @@ and compute_type_dfct env fct (*t0*) is_global =
           match p_list with
           | [] -> (types, env)
           | Param(typ,id)::cdr -> 
-            let new_env = try (add_new_dmap id typ env) with _ -> (handle_error 24 locdi None) 
+            let new_env = try (add_new_dmap id typ env) with _ -> (handle_error 24 locdi (Some(id))) 
               in
                 (* adding params to new env *)
                 (get_param_types cdr (types@[typ]) new_env)
         in let (p_types, new_env) = (get_param_types p_list [] (new_block_dmap env))
           (* adding fun prototype to new env and adding all parameters to new env *)
           in let fun_typ = Tfct(typ,p_types) in
-            let new_env = try (add_new_dmap ident fun_typ new_env) with _ -> (handle_error 25 locdi None)
+            let new_env = try (add_new_dmap ident fun_typ new_env) with _ -> (handle_error 23 locdi (Some(ident)))
             (* checking return type of the function *)
               in
                 (* new environment with only the function declaration *)
-                let new_env_without_params = try (add_new_dmap ident fun_typ env) with _ -> (handle_error 25 locdi None)
+                let new_env_without_params = try (add_new_dmap ident fun_typ env) with _ -> (handle_error 23 locdi (Some(ident)))
                 in
                 (* print_dmap new_env; *)
                 let (tdesci,_) = (compute_type_block new_env dinstr_list typ true) (* t0 is now the fun return typ *)
@@ -414,7 +413,7 @@ and type_ast parsed_ast =
             in
             let new_env = 
                 try (add_old_dmap ident (get_fct_type param_list []) new_env) 
-              with _ -> (handle_error 23 loc None)
+              with _ -> (handle_error 23 loc (Some(ident)))
             in
             let new_env = {old_env = new_env.old_env ; new_env = Smap.empty} in
               (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)

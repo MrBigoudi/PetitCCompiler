@@ -38,7 +38,6 @@ let typ_to_string typ =
     | Tfct(ty, ty_l) -> acc^("( "^(aux "" ty)^", ["^(ty_list "" ty_l)^" ] )")
   in (aux "" typ)
 
-
 (* *NULL is possible but warning from gcc*)
 (** Unary operators *)
 type unop = Unot | Ustar | Uamp | Uincr_l | Udecr_l | Uincr_r | Udecr_r | Uplus | Uminus
@@ -53,6 +52,24 @@ type andor_binop = Band | Bor
 
 (** Binary operations *)
 type binop = Arith of arith_binop | Logic of logic_binop | AndOr of andor_binop
+
+let op_to_string op = 
+  let sop =
+    match op with
+     | Arith(Badd) -> "+"
+     | Arith(Bsub) -> "-"
+     | Arith(Bmul) -> "*"
+     | Arith(Bdiv) -> "/"
+     | Arith(Bmod) -> "%"
+     | Logic(Beq)  -> "="
+     | Logic(Bneq)  -> "!="
+     | Logic(Blt)  -> "<"
+     | Logic(Ble)  -> "<="
+     | Logic(Bgt)  -> ">"
+     | Logic(Bge)  -> ">="
+     | AndOr(Band) -> "&&"
+     | AndOr(Bor) -> "||"
+  in "`"^sop^"'"
 
 (** Function parameters *)
 type param = Param of typ * ident
