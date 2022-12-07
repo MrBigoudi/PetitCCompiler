@@ -1,4 +1,4 @@
-# PetitCCompiler - Howto
+# petitc - Howto
 
 The compiler comes with a `Makefile` to make building and testing easier.
 
@@ -15,7 +15,7 @@ $ cd compiler
 $ make compiler
 ```
 
-This will build a `main.exe` in the `bin` directory. However, to make things more usable, a link `petitCCompiler.exe` to this executable is created in the `compiler` directory. To see how to use the so build compiler check [this section](#How-to-use-the-compiler).
+This will build a `main.exe` in the `bin` directory. However, to make things more usable, a link `petitc` to this executable is created in the `compiler` directory. To see how to use the so build compiler check [this section](#How-to-use-the-compiler).
 
 
 ### Run automated tests
@@ -61,7 +61,7 @@ $ make tests TEST_FLAGS=-<option>
 To use the compiler, just give it a valid `PetitC` file as input and it will generate an `.as` file corresponding to the assembly code generated.
 
 ```sh
-$ ./petitCCompiler <inputFile>.c
+$ ./petitc <inputFile>.c
 ```
 
 You can use several options for the compiler:
@@ -72,5 +72,5 @@ You can use several options for the compiler:
 | --type-only     | The compiler will stop after parsing the input file and checking it semantically |
 
 ```sh
-$ ./petitCCompiler <option> <inputFile>.c
+$ ./petitc <option> <inputFile>.c
 ```
