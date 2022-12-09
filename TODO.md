@@ -23,4 +23,4 @@
 
 # Generation de code
 
-- [ ] start it
+- [ ] parcour the typed ast to save infos about localisation of variables ( typed_ast -> alloc_ast)

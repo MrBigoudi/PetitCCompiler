@@ -1,9 +1,10 @@
 (** Main program for the petitC Compiler *)
 
 open Format
-open Syntax
 open Lexing
-open Typer
+
+open Syntax
+open CodeProd
 
 (** Print the compiler usage *)
 let usage = "usage: petitCCompiler [options] file.c"
@@ -50,9 +51,12 @@ let () =
         if !parse_only then exit 0 (* parse only *)
           else 
             begin
-              ignore (Typer.type_ast parsed_ast);
-              if !type_only then exit 0 (* type only *)
-                else failwith "todo production de code"
+              let typed_ast = Typer.type_ast parsed_ast in
+                if !type_only 
+                  then exit 0 (* type only *)
+                else
+                    let ass_file = (Filename.remove_extension file)^".s" in
+                      Code_producer.compile_program typed_ast ass_file
             end 
       end
     with
