@@ -89,22 +89,22 @@ let is_ptr t = match t with
   | Tptr(_) -> true
   | _       -> false
 
-(** val type_expr : dmap -> expression -> texpression *)
-let rec type_expr env e = 
-  let d, ty = compute_type_expr env e in 
-  { tdesc = d ; typ = ty }
+(** val type_expr : dmap -> expression -> int -> texpression *)
+let rec type_expr env e fpcur = 
+  let d, ty, fpcur = compute_type_expr env e fpcur in 
+  { tdesc = d ; typ = ty }, fpcur
 
-(** val compute_type_expr : dmap -> expression -> tdesc * typ *)
-and compute_type_expr env e = 
+(** val compute_type_expr : dmap -> expression -> int -> tdesc * typ * int *)
+and compute_type_expr env e fpcur = 
   let loc = e.loc in
   match e.desc with 
-  | Econst const -> type_const const
-  | Evar var -> (type_var var env loc)
-  | Eunop (op, e) -> (type_unop env op e loc)
-  | Ebinop (op, e1, e2) -> (type_binop env op e1 e2 loc)
-  | Eassign (e1, e2) -> (type_assign env e1 e2 loc)
-  | Ecall (id, e_list) -> (type_call env id e_list loc)
-  | Esizeof ty -> if equ_type ty Tvoid then (handle_error 13 loc None) else TEsizeof(ty), Tint
+  | Econst const -> let desc, typ = type_const const in desc, typ, fpcur
+  | Evar var -> let desc, typ = (type_var var env loc fpcur)in desc, typ, fpcur
+  | Eunop (op, e) -> let desc, typ = (type_unop env op e loc fpcur) in desc, typ, fpcur
+  | Ebinop (op, e1, e2) -> (type_binop env op e1 e2 loc fpcur)
+  | Eassign (e1, e2) -> (type_assign env e1 e2 loc fpcur)
+  | Ecall (id, e_list) -> (type_call env id e_list loc fpcur)
+  | Esizeof ty -> if equ_type ty Tvoid then (handle_error 13 loc None) else TEsizeof(ty), Tint, fpcur
 
 
 (** val type_const : const -> tdesc * typ *)
@@ -116,15 +116,15 @@ and type_const const =
   | Null -> TEconst(Null), Tptr(Tvoid)
 
 
-(** val type_var : ident -> dmap -> expression.loc -> tdesc * typ *)
-and type_var var env loc = 
-  try TEvar var, (search_dmap var env)
+(** val type_var : ident -> dmap -> expression.loc -> int -> tdesc * typ *)
+and type_var var env loc fpcur = 
+  try TEvar {ident = var; offset = fpcur} , (search_dmap var env)
     with _ -> (handle_error 9 loc (Some(var)))
 
 
-(** val type_unop : dmap -> unop -> expression -> expression.loc -> tdesc * typ *)
-and type_unop env op e loc = 
-  let te = type_expr env e in 
+(** val type_unop : dmap -> unop -> expression -> expression.loc -> int -> tdesc * typ *)
+and type_unop env op e loc fpcur = 
+  let (te,_) = type_expr env e fpcur in 
   let t = te.typ in
     match op with
     | Unot as op -> if t = Tvoid then (handle_error 1 loc None) else TEunop(op, te), Tint
@@ -139,55 +139,57 @@ and type_unop env op e loc =
     | Uminus as op -> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 8 loc (Some("-")))
         
 
-(** val type_binop : dmap -> unop -> expression -> expression -> expression.loc -> tdesc * typ *)
-and type_binop env op e1 e2 loc = 
-  let t1 = (type_expr env e1) in
-  let t2 = (type_expr env e2) in
+(** val type_binop : dmap -> unop -> expression -> expression -> expression.loc -> int -> tdesc * typ * int *)
+and type_binop env op e1 e2 loc fpcur = 
+  let (t1, fpmax1) = (type_expr env e1 fpcur) in
+  let (t2, fpmax2) = (type_expr env e2 fpcur) in
+  let fpmax = (max fpmax1 fpmax2) in
   let t1_type = t1.typ in 
   let t2_type = t2.typ in 
   match op with
   | Logic _ as op -> 
     begin if (not (equ_type Tvoid t1_type) && equ_type t1_type t2_type)
-       then TEbinop(op, t1, t2), Tint 
+       then TEbinop(op, t1, t2), Tint, fpmax
     else (handle_error 10 loc (Some((op_to_string op))))
   end
   | Arith(Badd)  as op -> 
     begin
       match t1_type with 
-        | t1_type when (not (is_ptr t1_type)) && (equ_type t1_type t2_type) -> TEbinop(op, t1, t2), Tint 
-        | t1_type when equ_type t1_type Tint && is_ptr t2_type -> TEbinop(op, t1, t2), t2_type
-        | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
+        | t1_type when (not (is_ptr t1_type)) && (equ_type t1_type t2_type) -> TEbinop(op, t1, t2), Tint, fpmax
+        | t1_type when equ_type t1_type Tint && is_ptr t2_type -> TEbinop(op, t1, t2), t2_type, fpmax
+        | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type, fpmax
         | _ -> (handle_error 10 loc (Some((op_to_string op))))
     end
   | Arith(Bsub) as op -> 
     begin
       match t1_type with 
-      | t1_type when equ_type t1_type t2_type -> TEbinop(op, t1, t2), Tint
-      | Tptr(_) when t1_type = t2_type -> TEbinop(op, t1, t2), Tint
-      | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
+      | t1_type when equ_type t1_type t2_type -> TEbinop(op, t1, t2), Tint, fpmax
+      | Tptr(_) when t1_type = t2_type -> TEbinop(op, t1, t2), Tint, fpmax
+      | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type, fpmax
       | _ -> (handle_error 10 loc (Some((op_to_string op))))
     end
   | Arith(_) as op -> 
     if equ_type t1_type t2_type
-      then TEbinop(op, t1, t2), Tint 
+      then TEbinop(op, t1, t2), Tint, fpmax
       else (handle_error 10 loc (Some((op_to_string op))))
   | AndOr(_) as op -> 
     begin if (equ_type Tint t1_type && equ_type t1_type t2_type) 
-      then TEbinop(op, t1, t2), Tint 
+      then TEbinop(op, t1, t2), Tint, fpmax
       else (handle_error 10 loc (Some((op_to_string op))))
     end
 
 
-(** val type_assign : dmap -> expression -> expression -> expression.loc -> tdesc * typ *)
-and type_assign env e1 e2 loc =
-  let te1 = type_expr env e1 in
-  let te2 = type_expr env e2 in
-  if (is_lvalue e1) && (equ_type te1.typ te2.typ) then TEassign(te1, te2), te1.typ else 
+(** val type_assign : dmap -> expression -> expression -> expression.loc -> int -> tdesc * typ *)
+and type_assign env e1 e2 loc fpcur =
+  let (te1, fpmax1) = type_expr env e1 fpcur in
+  let (te2, fpmax2) = type_expr env e2 fpcur in
+  let fpmax = (max fpmax1 fpmax2) in
+  if (is_lvalue e1) && (equ_type te1.typ te2.typ) then TEassign(te1, te2), te1.typ, fpmax else 
     (if (is_lvalue e1) then (handle_error 12 loc None) else (handle_error 11 loc None))
 
 
-(** val type_call : dmap -> ident -> expression list -> expression.loc -> tdesc * typ *)
-and type_call env id e_list loc = 
+(** val type_call : dmap -> ident -> expression list -> expression.loc -> int -> tdesc * typ *)
+and type_call env id e_list loc fpcur = 
   (* test if function exists in env *)
   let fct_typ = 
     begin
@@ -197,134 +199,135 @@ and type_call env id e_list loc =
     match fct_typ with 
       | Tfct(ret_typ, param_typ) ->
         (* test if given parameters are correct *)
-        let rec test_param_fun_call e_list param_typ_list te_list =
+        let rec test_param_fun_call e_list param_typ_list te_list fpmax =
           match (e_list,param_typ_list) with
-          | ([],[]) -> TEcall(id, te_list), ret_typ
+          | ([],[]) -> TEcall({ident = id; offset = fpmax}, te_list), ret_typ, fpmax
           | ([],_) -> (handle_error 15 loc (Some(id))) (* not enough params *)
           | (_,[]) -> (handle_error 16 loc (Some(id))) (* too many params *)
           | (e::e_cdr), (p::p_cdr) ->
-            let te = type_expr env e in
+            let (te, fptmp) = type_expr env e fpcur in
               (* test if compatible type *) 
               if not (equ_type te.typ p) 
                 then (handle_error 17 e.loc (Some(id))) (* incompatible types *)
                 (* recursive call *)
-                else (test_param_fun_call e_cdr p_cdr (te_list@[te]))
-          in (test_param_fun_call e_list param_typ [])
+                else (test_param_fun_call e_cdr p_cdr (te_list@[te]) (max fpmax fptmp))
+          in (test_param_fun_call e_list param_typ [] fpcur)
       | _ -> handle_error 31 loc (Some(id))
 
 
 
 
 
-(** val type_instr : dmap -> instr -> typ -> dinstr.loc -> tinstr *)
-let rec type_instr env ist t0 locdi = 
-  let d, new_env = compute_type_instr env ist t0 locdi in 
-  { tdesci = d ; env = new_env }
+(** val type_instr : dmap -> instr -> typ -> dinstr.loc -> int -> tinstr * int *)
+let rec type_instr env ist t0 locdi fpcur = 
+  let d, new_env, fpcur = compute_type_instr env ist t0 locdi fpcur in 
+  { tdesci = d ; env = new_env }, fpcur
 
-(** val compute_type_instr : dmap -> instr -> typ -> dinstr.loc -> tdesci * dmap *)
-and compute_type_instr (env:dmap) ist t0 locdi = 
+(** val compute_type_instr : dmap -> instr -> typ -> dinstr.loc -> int -> tdesci * dmap * int *)
+and compute_type_instr (env:dmap) ist t0 locdi fpcur = 
   match ist with
-  | Iempt -> TIempt, env
-  | Ibreak -> if !in_loop then TIbreak, env else (handle_error 29 locdi None)
-  | Icontinue -> if !in_loop then TIcontinue, env else (handle_error 30 locdi None)
-  | Iexpr e -> TIexpr (type_expr env e), env
+  | Iempt -> TIempt, env, fpcur
+  | Ibreak -> if !in_loop then TIbreak, env, fpcur else (handle_error 29 locdi None)
+  | Icontinue -> if !in_loop then TIcontinue, env, fpcur else (handle_error 30 locdi None)
+  | Iexpr e -> let (t, fpcur) = (type_expr env e fpcur) in TIexpr t, env, fpcur
   | Iret None -> if t0 = Tvoid 
-                    then TIret(None), env 
+                    then TIret(None), env, fpcur
                     else (handle_error 18 locdi None)
-  | Iret Some(e) -> let texp = (type_expr env e) in
+  | Iret Some(e) -> let (texp, fpcur) = (type_expr env e fpcur) in
                     if (equ_type t0 (texp.typ))
-                      then TIret(Some(texp)), env 
+                      then TIret(Some(texp)), env, fpcur 
                       else (handle_error 19 locdi None)
-  | Iif(e, i1, i2) -> compute_type_if env e i1 i2 t0 locdi
-  | Iwhile(e, i) -> compute_type_while env e i t0 locdi
-  | Ifor(dvar, e, elist, i) -> compute_type_for env dvar e elist i t0 locdi
-  | Iblock(Block dinstr_list) -> compute_type_block env dinstr_list t0 false
+  | Iif(e, i1, i2) -> compute_type_if env e i1 i2 t0 locdi fpcur
+  | Iwhile(e, i) -> compute_type_while env e i t0 locdi fpcur
+  | Ifor(dvar, e, elist, i) -> compute_type_for env dvar e elist i t0 locdi fpcur
+  | Iblock(Block dinstr_list) -> compute_type_block env dinstr_list t0 false fpcur
 
-(** val compute_type_if : dmap -> expression -> instr -> instr -> typ -> dinstr.loc -> tdesci * dmap *)
-and compute_type_if env e i1 i2 t0 locdi =
-  let te = (type_expr env e) in
+(** val compute_type_if : dmap -> expression -> instr -> instr -> typ -> dinstr.loc -> int -> tdesci * dmap * int *)
+and compute_type_if env e i1 i2 t0 locdi fpcur =
+  let (te, fpcur) = (type_expr env e fpcur) in
     if (equ_type Tvoid (te.typ)) 
       then (handle_error 20 locdi (Some("if")))
     else 
-      let ti1 = (type_instr env i1 t0 locdi) in
-      let ti2 = (type_instr env i2 t0 locdi) in
-        TIif(te, ti1, ti2), env
+      let (ti1, fpmax1) = (type_instr env i1 t0 locdi fpcur) in
+      let (ti2, fpmax2) = (type_instr env i2 t0 locdi fpcur) in
+        TIif(te, ti1, ti2), env, (max fpmax1 fpmax2)
 
-(** val compute_type_while : dmap -> expression -> instr -> typ -> dinstr.loc -> tdesci * dmap *)
-and compute_type_while env e i t0 locdi =
+(** val compute_type_while : dmap -> expression -> instr -> typ -> dinstr.loc -> int -> tdesci * dmap * int *)
+and compute_type_while env e i t0 locdi fpcur =
   in_loop := true;
-  let te = (type_expr env e) in
+  let (te, fpcur) = (type_expr env e fpcur) in
       if(equ_type Tvoid (te.typ))
         then (handle_error 20 locdi (Some("while")))
     else 
-      let ti = (type_instr env i t0 locdi)in (in_loop := false ; TIwhile(te, ti), env)
+      let ti, fpcur = (type_instr env i t0 locdi fpcur) in (in_loop := false ; TIwhile(te, ti), env, fpcur)
 
 
-(** val compute_type_for : dmap -> dvar -> instr -> instr -> typ -> dinstr.loc -> tdesci * dmap *)
-and compute_type_for env dvar e elist i t0 locdi =
+(** val compute_type_for : dmap -> dvar -> instr -> instr -> typ -> dinstr.loc -> int -> tdesci * dmap * int *)
+and compute_type_for env dvar e elist i t0 locdi fpcur =
   in_loop := true;
-  (* val createTExprList : expression list -> texpression list -> dmap -> texpression list *)
-  let rec createTExprList exprList acc env = 
+  (* val createTExprList : expression list -> texpression list -> dmap -> int -> texpression list * int *)
+  let rec createTExprList exprList acc env fpmax = 
     match exprList with
-    | [] -> acc
-    | e::cdr -> let texpr = (type_expr env e) in
-                  (createTExprList cdr (acc@[texpr]) env)
+    | [] -> acc, fpmax
+    | e::cdr -> let (texpr, fptmp) = (type_expr env e fpcur) in
+                  (createTExprList cdr (acc@[texpr]) env (max fpmax fptmp))
   in
   let tdvar, new_env =
     match dvar with 
     (* d; for(;e;l) *)
     | None -> None, env
     (* for(d;e;l) *)
-    | Some(d) -> match compute_type_dinstr_var (new_block_dmap env) d (*t0*) locdi with (* creating new empty block env for the for loop *)
-      | (TDinstrVar(tdvar),new_env) -> Some(tdvar), new_env
+    | Some(d) -> match compute_type_dinstr_var (new_block_dmap env) d locdi fpcur with (* creating new empty block env for the for loop *)
+      | TDinstrVar(tdvar), new_env, _ -> Some(tdvar), new_env
       | _ -> handle_error 20 locdi (Some("for"))
   in 
     begin
       match e with 
       | None -> (* for(d;;l) -> for(d;true;l) *)
         let te = {tdesc = TEconst(True); typ = Tbool} in 
-          let te_list = (createTExprList elist [] new_env) in
-            let s = (type_instr new_env i t0 locdi) in
+          let (te_list, new_fp) = (createTExprList elist [] new_env fpcur) in
+            let s, new_fp = (type_instr new_env i t0 locdi new_fp) in
               in_loop := false; 
-              TIfor(tdvar, Some(te), te_list, s), env (* return previous env *)
+              TIfor(tdvar, Some(te), te_list, s), env, new_fp (* return previous env *)
       | Some e ->
-        let te = (type_expr new_env e) in
+        let te, fpcur = (type_expr new_env e fpcur) in
         if(equ_type Tvoid (te.typ))
           then (handle_error 21 locdi None)
           else
-            let te_list = (createTExprList elist [] new_env) in
-            let s = (type_instr new_env i t0 locdi) in
+            let te_list, new_fp = (createTExprList elist [] new_env fpcur) in
+            let s, new_fp = (type_instr new_env i t0 locdi new_fp) in
               in_loop := false; 
-              TIfor(tdvar, Some(te), te_list, s), env (* return previous env *)
+              TIfor(tdvar, Some(te), te_list, s), env, new_fp (* return previous env *)
     end
 
 
-(** val compute_type_block : dmap -> dinstr list -> typ -> bool -> tdesci * dmap *)
-and compute_type_block env di_list t0 from_dfct =
-  (* val compute_type_block_instr : dinstr list -> dmap -> tdinstr list -> tdesci * dmap *)
-  let rec compute_type_block_instr di_list new_env tdi_list =
+(** val compute_type_block : dmap -> dinstr list -> typ -> bool -> int -> tdesci * dmap * int *)
+and compute_type_block env di_list t0 from_dfct fpcur =
+  (* val compute_type_block_instr : dinstr list -> dmap -> tdinstr list -> int -> tdesci * dmap * int *)
+  let rec compute_type_block_instr di_list new_env tdi_list fpmax =
     match di_list with 
-    | [] -> TIblock(TBlock(tdi_list)), env (* restore the previous env *)
+    | [] -> TIblock(TBlock(tdi_list)), env, fpmax (* restore the previous env *)
     | cur_di::cdr ->
-      let (cur_tdi, new_env) = compute_type_dinstr new_env cur_di t0 in
-        (compute_type_block_instr cdr new_env (tdi_list@[cur_tdi])) (* update the block dmap *)
+      let (cur_tdi, new_env, fptmp) = compute_type_dinstr new_env cur_di t0 fpcur in
+        (compute_type_block_instr cdr new_env (tdi_list@[cur_tdi]) (max fpmax fptmp)) (* update the block dmap *)
   in 
     (* if new block from decl fun then do not create a new env *)
-    if from_dfct then (compute_type_block_instr di_list env [])
-      else (compute_type_block_instr di_list (new_block_dmap env) [])
+    if from_dfct then (compute_type_block_instr di_list env [] fpcur)
+      else (compute_type_block_instr di_list (new_block_dmap env) [] 0)
     
 
-(** val compute_type_dinstr : dmap -> dinstr -> typ -> tdinstr * dmap *)
-and compute_type_dinstr env di t0 =
+(** val compute_type_dinstr : dmap -> dinstr -> typ -> int -> tdinstr * dmap * int *)
+and compute_type_dinstr env di t0 fpcur =
   let locdi = di.locdi in
   match di.descdi with 
-  | DinstrVar v -> (compute_type_dinstr_var env v (*t0*) locdi)
-  | DinstrFct dfct -> (compute_type_dinstr_fct env dfct (*t0*))
-  | Dinstr i -> let (tdesci, env) = (compute_type_instr env i t0 locdi) in (TDinstr({tdesci=tdesci; env=env}), env)
+  | DinstrVar v -> (compute_type_dinstr_var env v locdi fpcur)
+  | DinstrFct dfct -> (compute_type_dinstr_fct env dfct fpcur)
+  | Dinstr i -> let (tdesci, env, fpcur) = (compute_type_instr env i t0 locdi fpcur) in (TDinstr({tdesci=tdesci; env=env}), env, fpcur)
 
 
-(** val compute_type_dinstr_var : dmap -> dvar -> typ -> dinstr.loc -> tdinstr * dmap *)
-and compute_type_dinstr_var env v (*t0*) locdi = 
+(** val compute_type_dinstr_var : dmap -> dvar -> dinstr.loc -> int -> tdinstr * dmap * int *)
+and compute_type_dinstr_var env v locdi fpcur = 
+  let new_fp = (fpcur - 8) in
   match v with Dvar(typ, ident, exp) ->
     (* check if variable is of type void *)
     if (equ_type typ Tvoid) 
@@ -336,23 +339,23 @@ and compute_type_dinstr_var env v (*t0*) locdi =
         (* adding variable to new env *)
         else 
           match exp with 
-          | None -> TDinstrVar(TDvar(typ, ident, None)), (add_new_dmap ident typ env)
+          | None -> TDinstrVar(TDvar(typ, {ident = ident; offset = new_fp}, None)), (add_new_dmap ident typ env), new_fp
           | Some(e) -> 
-            let (e_tdesc, e_typ) = (compute_type_expr env e) in
+            let (e_tdesc, e_typ, next_fp) = (compute_type_expr env e new_fp) in
               (* typ x = e; -> test if 'typ' equivalent to type of 'e'*)
               if not (equ_type e_typ typ) 
                 then (handle_error 25 locdi (Some(ident)))
-                else TDinstrVar(TDvar(typ, ident, Some({tdesc=e_tdesc; typ=e_typ}))), (add_new_dmap ident typ env)
+                else TDinstrVar(TDvar(typ, {ident = ident; offset = new_fp}, Some({tdesc=e_tdesc; typ=e_typ}))), (add_new_dmap ident typ env), next_fp
 
 
-(** val compute_type_dinstr_fct : dmap -> dfct -> typ -> tdinstr * dmap *)
-and compute_type_dinstr_fct env fct (*t0*) = 
+(** val compute_type_dinstr_fct : dmap -> dfct -> int -> tdinstr * dmap * int *)
+and compute_type_dinstr_fct env fct fpcur = 
   (* print_dmap env; *)
-  let t_dfct, env = (compute_type_dfct env fct (*t0*) false) (* false for non global function declaration *)
-    in TDinstrFct t_dfct, env
+  let t_dfct, env, fpcur = (compute_type_dfct env fct false fpcur) (* false for non global function declaration *)
+    in TDinstrFct t_dfct, env, fpcur
 
-(** val compute_type_dfct : dmap -> dfct -> typ -> bool -> tdfct * dmap *)
-and compute_type_dfct env fct (*t0*) is_global = 
+(** val compute_type_dfct : dmap -> dfct -> bool -> int -> tdfct * dmap * int *)
+and compute_type_dfct env fct is_global fpcur = 
   let fct, locdi = fct.descdfct, fct.locdfct in
   match fct with
     Dfct (typ, ident, p_list, Block(dinstr_list)) ->
@@ -382,9 +385,9 @@ and compute_type_dfct env fct (*t0*) is_global =
                 let new_env_without_params = try (add_new_dmap ident fun_typ env) with _ -> (handle_error 23 locdi (Some(ident)))
                 in
                 (* print_dmap new_env; *)
-                let (tdesci,_) = (compute_type_block new_env dinstr_list typ true) (* t0 is now the fun return typ *)
+                let (tdesci,_,_) = (compute_type_block new_env dinstr_list typ true fpcur) (* t0 is now the fun return typ *)
                 in match tdesci with 
-                  | TIblock t_block -> TDfct(typ, ident, p_list, t_block), new_env_without_params
+                  | TIblock t_block -> TDfct(typ, {ident = ident; offset = fpcur}, p_list, t_block), new_env_without_params, fpcur
                   | _ -> assert false (* should not end up here *)
 
           
@@ -403,7 +406,7 @@ and type_ast parsed_ast =
         | [] -> TFileInclude(tdfct_list)
         | cur_dfct::cdr -> 
           let (typ,ident,param_list,loc) = match cur_dfct with {descdfct=Dfct(typ,ident,param_list,_) ; locdfct=loc} -> (typ,ident,param_list,loc) in
-            let (cur_tdfct, new_env) = compute_type_dfct new_env cur_dfct (*typ*) true in (* true for global fct definition *)
+            let (cur_tdfct, new_env, _) = compute_type_dfct new_env cur_dfct true 0 in (* true for global fct definition, 0 for fpcur *)
             (check_main_in_env new_env typ ident param_list);
             (* add type of f in global env *)
             let rec get_fct_type param_list types_list =

@@ -7,6 +7,9 @@ type env = typ Smap.t
 
 exception Environnement_error of string
 
+(** add offset to idents *)
+type tident = {ident: ident ; offset : int}
+
 (** double maps : using old and new environnements for blocks *)
 type dmap = { old_env : env ; new_env : env}
 
@@ -20,7 +23,7 @@ let search_dmap id doub_map =
     | Some(t), None -> t
     | _, Some(t2) -> t2
 
-(** val in_new_env : ident -> dmap -> bool *)
+(** val in_new_env_dmap : ident -> dmap -> bool *)
 let in_new_env_dmap id doub_map =
   let nenv = doub_map.new_env in 
   Smap.mem id nenv
@@ -76,15 +79,15 @@ type texpression = {
 (** Description of texpressions *)
 and tdesc =
   | TEconst of const 
-  | TEvar of ident
+  | TEvar of tident
   | TEunop of unop * texpression
   | TEbinop of binop * texpression * texpression
   | TEassign of texpression * texpression
-  | TEcall of ident * texpression list
+  | TEcall of tident * texpression list
   | TEsizeof of typ (* maybe adding primitives *)
 
 (** Variable declarations *)
-type tdvar = TDvar of typ * ident * texpression option
+type tdvar = TDvar of typ * tident * texpression option
 
 (** Instruction declarations *)
 and tdinstr = 
@@ -93,7 +96,7 @@ and tdinstr =
   | TDinstr of tinstr
 
 (** Function declarations *)
-and tdfct = TDfct of typ * ident * param list * tblock
+and tdfct = TDfct of typ * tident * param list * tblock
 
 (** Instruction blocks *)
 and tblock = TBlock of tdinstr list
