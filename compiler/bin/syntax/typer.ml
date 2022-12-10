@@ -2,7 +2,7 @@ open Ast
 open Ast_typed
 
 (** Exception for typing errors *)
-exception Typing_error of string * loc
+exception Typing_error of string * loc * string option
 
 (** dummy location for temporary tests and unknown localisation 
     val not_found_loc -> loc *)
@@ -12,39 +12,39 @@ let not_found_loc = Lexing.dummy_pos, Lexing.dummy_pos
     val handle_error : int -> loc -> string option -> unit *)
 let handle_error err_num pos stropt =
   let error = 
-    match err_num, stropt with
-    | 0, None  -> "Undefined reference to `main'"
-    | 1, None  -> "Invalid use of void expression"
-    | 2, None  -> "Void value not ignored as it ought to be"
-    | 3, None  -> "Invalid type of unary `*'"
-    | 4, Some(s) -> "lvalue required as "^s^"operand"
-    | 7, Some(s)  -> "Wrong type argument to unary "^s
-    | 8, Some(s)  -> "Wrong type argument to unary "^s
-    | 9, None  -> "Use of undeclared identifier"
-    | 10, Some(s) -> "Invalid operands to binary expression "^s
-    | 11, None -> "lvalue required as left operand of assignment"
-    | 12, None -> "Incompatible types for assignation"
-    | 13, None -> "The void shall have no size..."
-    | 14, Some(s) -> "Implicit declaration of function "^s
-    | 15, Some(s) -> "Too few arguments to function call "^s
-    | 16, Some(s) -> "Too many arguments to function call "^s
-    | 17, Some(s) -> "Passing expressions to parameter of incompatible type in "^s
-    | 18, None -> "Non-void function should return a value"
-    | 19, None -> "Function does not return a value of the correct type" 
-    | 20, Some(s) -> "Expected expression in "^s^" block"
-    | 21, None -> "Statement requires expression of scalar type"
-    | 22, Some(s) -> "Variable "^s^" has incomplete type"
-    | 23, Some(s) -> "Redefinition of identifier "^s
-    | 24, Some(s) -> "Redefinition of parameter "^s
-    | 25, Some(s) -> "Incompatible conversion "^s
-    | 26, Some(s) -> "Can't redefine stdandard function "^s 
-    | 27, None -> "Main function should not take arguments" 
-    | 28, None -> "Main function should return an int" 
-    | 29, None -> "Break statement not within a loop"
-    | 30, None -> "Continue statement not within a loop"
-    | 31, Some(s) -> "Called object "^s^"which is not a function or function pointer"
-    | _, _ -> "Unkown error"
-  in raise (Typing_error(error, pos))
+    match err_num with
+    | 0  -> "Undefined reference to `main'"
+    | 1  -> "Invalid use of void expression"
+    | 2  -> "Void value not ignored as it ought to be"
+    | 3  -> "Invalid type of unary"
+    | 4  -> "lvalue required as operand"
+    | 7  -> "Wrong type argument to unary"
+    | 8  -> "Wrong type argument to unary"
+    | 9  -> "Use of undeclared identifier"
+    | 10 -> "Invalid operands to binary expression"
+    | 11 -> "lvalue required as left operand of assignment"
+    | 12 -> "Incompatible types for assignation"
+    | 13 -> "The void shall have no size..."
+    | 14 -> "Implicit declaration of function"
+    | 15 -> "Too few arguments to function call"
+    | 16 -> "Too many arguments to function call"
+    | 17 -> "Passing expressions to parameter of incompatible type in"
+    | 18 -> "Non-void function should return a value"
+    | 19 -> "Function does not return a value of the correct type" 
+    | 20 -> "Expected expression in block"
+    | 21 -> "Statement requires expression of scalar type"
+    | 22 -> "Variable has incomplete type"
+    | 23 -> "Redefinition of identifier"
+    | 24 -> "Redefinition of parameter" 
+    | 25 -> "Incompatible conversion"
+    | 26 -> "Can't redefine standard function"
+    | 27 -> "Main function should not take arguments" 
+    | 28 -> "Main function should return an int" 
+    | 29 -> "Break statement not within a loop"
+    | 30 -> "Continue statement not within a loop"
+    | 31 -> "Called object which is not a function or function pointer"
+    | _  -> "Unkown error"
+  in raise (Typing_error(error, pos, stropt))
 
 
 (** check if there is a main function in the file *)
@@ -121,7 +121,7 @@ and type_const const =
 (** val type_var : ident -> dmap -> expression.loc -> tdesc * typ *)
 and type_var var env loc = 
   try TEvar var, (search_dmap var env)
-    with _ -> (handle_error 9 loc None)
+    with _ -> (handle_error 9 loc (Some(var)))
 
 
 (** val type_unop : dmap -> unop -> expression -> expression.loc -> tdesc * typ *)
@@ -131,14 +131,14 @@ and type_unop env op e loc =
     match op with
     | Unot as op -> if t = Tvoid then (handle_error 1 loc None) else TEunop(op, te), Tint
     | Ustar as op -> if t = Tvoid then (handle_error 2 loc None)
-        else (match t with Tptr(ty) -> TEunop(op, te), ty | _ -> (handle_error 3 loc None))
-    | Uamp as op -> if is_lvalue e then TEunop(op, te), Tptr(t) else (handle_error 4 loc (Some("unary `&' ")))
-    | Uincr_l as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 4 loc (Some("increment ")))
-    | Uincr_r as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 4 loc (Some("increment ")))
-    | Udecr_l as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 4 loc (Some("decrement ")))
-    | Udecr_r as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 4 loc (Some("decrement ")))
-    | Uplus as op-> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 7 loc (Some("plus")))
-    | Uminus as op -> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 8 loc (Some("minus")))
+        else (match t with Tptr(ty) -> TEunop(op, te), ty | _ -> (handle_error 3 loc (Some("*"))))
+    | Uamp as op -> if is_lvalue e then TEunop(op, te), Tptr(t) else (handle_error 4 loc (Some("&")))
+    | Uincr_l as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 4 loc (Some("++")))
+    | Uincr_r as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 4 loc (Some("++")))
+    | Udecr_l as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 4 loc (Some("--")))
+    | Udecr_r as op -> if is_lvalue e then TEunop(op, te), t else (handle_error 4 loc (Some("--")))
+    | Uplus as op-> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 7 loc (Some("+")))
+    | Uminus as op -> if equ_type t Tint then TEunop(op, te), Tint else (handle_error 8 loc (Some("-")))
         
 
 (** val type_binop : dmap -> unop -> expression -> expression -> expression.loc -> tdesc * typ *)
@@ -151,7 +151,7 @@ and type_binop env op e1 e2 loc =
   | Logic _ as op -> 
     begin if (not (equ_type Tvoid t1_type) && equ_type t1_type t2_type)
        then TEbinop(op, t1, t2), Tint 
-    else (handle_error 10 loc (Some(op_to_string op)))
+    else (handle_error 10 loc (Some((op_to_string op))))
   end
   | Arith(Badd)  as op -> 
     begin
@@ -159,7 +159,7 @@ and type_binop env op e1 e2 loc =
         | t1_type when (not (is_ptr t1_type)) && (equ_type t1_type t2_type) -> TEbinop(op, t1, t2), Tint 
         | t1_type when equ_type t1_type Tint && is_ptr t2_type -> TEbinop(op, t1, t2), t2_type
         | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
-        | _ -> (handle_error 10 loc (Some(op_to_string op)))
+        | _ -> (handle_error 10 loc (Some((op_to_string op))))
     end
   | Arith(Bsub) as op -> 
     begin
@@ -167,16 +167,16 @@ and type_binop env op e1 e2 loc =
       | t1_type when equ_type t1_type t2_type -> TEbinop(op, t1, t2), Tint
       | Tptr(_) when t1_type = t2_type -> TEbinop(op, t1, t2), Tint
       | Tptr(_) when equ_type t2_type Tint -> TEbinop(op, t1, t2), t1_type
-      | _ -> (handle_error 10 loc (Some(op_to_string op)))
+      | _ -> (handle_error 10 loc (Some((op_to_string op))))
     end
   | Arith(_) as op -> 
     if equ_type t1_type t2_type
       then TEbinop(op, t1, t2), Tint 
-      else (handle_error 10 loc (Some(op_to_string op)))
+      else (handle_error 10 loc (Some((op_to_string op))))
   | AndOr(_) as op -> 
     begin if (equ_type Tint t1_type && equ_type t1_type t2_type) 
       then TEbinop(op, t1, t2), Tint 
-      else (handle_error 10 loc (Some(op_to_string op)))
+      else (handle_error 10 loc (Some((op_to_string op))))
     end
 
 
@@ -185,7 +185,7 @@ and type_assign env e1 e2 loc =
   let te1 = type_expr env e1 in
   let te2 = type_expr env e2 in
   if (is_lvalue e1) && (equ_type te1.typ te2.typ) then TEassign(te1, te2), te1.typ else 
-    (if (is_lvalue e1) then (handle_error 11 loc None) else (handle_error 12 loc None))
+    (if (is_lvalue e1) then (handle_error 12 loc None) else (handle_error 11 loc None))
 
 
 (** val type_call : dmap -> ident -> expression list -> expression.loc -> tdesc * typ *)

@@ -71,7 +71,7 @@ let op_to_string op =
      | Logic(Bge)  -> ">="
      | AndOr(Band) -> "&&"
      | AndOr(Bor) -> "||"
-  in "`"^sop^"'"
+  in sop
 
 (** Function parameters *)
 type param = Param of typ * ident

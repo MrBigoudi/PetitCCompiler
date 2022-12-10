@@ -20,7 +20,7 @@ PARSER := $(SYNTAX_FOLDER)/parser.mly
 
 # TARGETS
 TARGET    := main.exe
-COMPILER  := petitCCompiler.exe
+COMPILER  := petitc
 TEST      := test_cpy.sh
 TEST_FLAGS := -v1
 
@@ -45,7 +45,9 @@ tests: compiler
 
 ## Test if the parser generates conflicts
 explain:
-	@echo -e "\n********** Checking parser conflicts **********\n"
+	@echo ""
+	@echo "********** Checking parser conflicts **********"
+	@echo ""
 	menhir --base /tmp/parser --dump --explain $(PARSER)
 	@cat /tmp/parser.conflicts
 
