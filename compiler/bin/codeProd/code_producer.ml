@@ -12,7 +12,7 @@ let rec compile_expr (exp: Ast_typed.texpression) =
   match tdesc with 
   | TEconst cst              -> compile_const cst
   | TEvar tident             -> compile_var tident
-  | TEunop (op, te)          -> compile_unop op te
+  | TEunop (op, te)          -> compile_unop op te typ
   | TEbinop (op, te1, te2)   -> failwith "TODO"
   | TEassign (te1, te2)      -> failwith "TODO"
   | TEcall (tident, te_list) -> failwith "TODO"
@@ -23,9 +23,9 @@ let rec compile_expr (exp: Ast_typed.texpression) =
 and compile_const cst =
   match cst with
   | Int i -> pushq (imm i)
-  | True -> pushq (imm 1) (* ??? *)
-  | False -> pushq (imm 0) (* ??? *)
-  | Null -> pushq (imm 0) (* ??? *)
+  | True -> pushq (imm 0x1)
+  | False -> pushq (imm 0x0)
+  | Null -> pushq (imm 0x0)
 
 (** Compile a variable
     val compile_var : Ast_typed.tident -> text *)
@@ -34,13 +34,13 @@ and compile_var tident =
 
 
 (** Compile a unary operation 
-    val compile_unop : Ast.unop -> Ast_typed.texpression -> text *)
-and compile_unop op te =
+    val compile_unop : Ast.unop -> Ast_typed.tdesc -> Ast.typ -> text *)
+and compile_unop op te typ =
   compile_expr te ++
   popq rax ++
   (match op with 
     | Unot    -> notq !%rax
-    | Ustar   -> failwith "TODO"
+    | Ustar   -> compile_unop_ustar typ
     | Uamp    -> failwith "TODO"
     | Uincr_l -> failwith "TODO"
     | Udecr_l -> failwith "TODO"
@@ -50,10 +50,20 @@ and compile_unop op te =
     | Uminus  -> failwith "TODO") ++
   pushq !%rax 
 
+(** Compile a star expression
+    val compile_unop_ustar : typ -> text *)
+and compile_unop_ustar typ =
+  match typ with 
+  | Tint -> incq (!%rax) (* if int then incr *)
+  | Tbool -> movq (imm 0x1) !%rax (* if bool then true *)
+  | Tptr _ -> addq (imm 0x8) !%rax (* if pointer then add 0x8 = length of words *)
+  | _ -> assert false
+
+
+
 (** Compile an instruction 
     val compile_instr : text -> text -> tinstr -> text * text *)
 and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr) =
-  failwith "TODO compile instr";
   let tdesci, env = instr.tdesci, instr.env in
   match tdesci with 
   | TIempt                        -> failwith "TODO"
@@ -62,9 +72,24 @@ and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr)
   | TIwhile (exp, ins)            -> failwith "TODO"
   | TIfor (var, exp, exp_list, i) -> failwith "TODO"
   | TIblock block                 -> failwith "TODO"
-  | TIret exp                     -> failwith "TODO"
+  | TIret exp                     -> compile_instr_ret global_code cur_code exp
   | TIbreak                       -> failwith "TODO"
   | TIcontinue                    -> failwith "TODO"
+
+
+(** Compile a return instruction
+    val compile_instr_ret : text -> text -> texpression -> text * text *)
+and compile_instr_ret global_code cur_code exp =
+  let code = 
+    match exp with
+    | Some(exp) ->
+      (
+        compile_expr exp ++ 
+        popq rax ++ 
+        ret
+      )
+    | None -> ret 
+  in code ++ cur_code, global_code
 
 
 (** Compile a variable declaration 
