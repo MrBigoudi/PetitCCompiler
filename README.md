@@ -56,4 +56,4 @@ For the typer we are using a typed-AST and the typer transforms the AST into the
 
 ## Code production
 
-TODO
+We've started by remebering offsets of variables during the typer checks. However we still have to figure out how it should behave for nested functions.
