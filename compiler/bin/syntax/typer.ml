@@ -313,7 +313,7 @@ and compute_type_block env di_list t0 from_dfct fpcur =
   in 
     (* if new block from decl fun then do not create a new env *)
     if from_dfct then (compute_type_block_instr di_list env [] fpcur)
-      else (compute_type_block_instr di_list (new_block_dmap env) [] 0)
+      else (compute_type_block_instr di_list (new_block_dmap env) [] (-8)) (* first local var at -8 *)
     
 
 (** val compute_type_dinstr : dmap -> dinstr -> typ -> int -> tdinstr * dmap * int *)
@@ -375,6 +375,15 @@ and compute_type_dfct env fct is_global fpcur =
               in
                 (* adding params to new env *)
                 (get_param_types cdr (types@[typ]) new_env)
+        in
+          (* getting correct offset for all parameters *)
+          let rec param_list_to_tparam_list p_list acc fp_param =
+            match p_list with
+            | [] -> acc
+            | Param(typ,id)::cdr -> 
+              let new_id = {ident = id; offset = fp_param} in
+                let new_param = TParam(typ, new_id) in
+                  (param_list_to_tparam_list cdr (acc@[new_param]) (fp_param+8)) (* +8 for parameters *)
         in let (p_types, new_env) = (get_param_types p_list [] (new_block_dmap env))
           (* adding fun prototype to new env and adding all parameters to new env *)
           in let fun_typ = Tfct(typ,p_types) in
@@ -386,8 +395,9 @@ and compute_type_dfct env fct is_global fpcur =
                 in
                 (* print_dmap new_env; *)
                 let (tdesci,_,_) = (compute_type_block new_env dinstr_list typ true fpcur) (* t0 is now the fun return typ *)
+                in let new_plist = (param_list_to_tparam_list p_list [] 16) (* first param at +16 *)
                 in match tdesci with 
-                  | TIblock t_block -> TDfct(typ, {ident = ident; offset = fpcur}, p_list, t_block), new_env_without_params, fpcur
+                  | TIblock t_block -> TDfct(typ, {ident = ident; offset = fpcur}, new_plist, t_block), new_env_without_params, fpcur
                   | _ -> assert false (* should not end up here *)
 
           
@@ -406,7 +416,7 @@ and type_ast parsed_ast =
         | [] -> TFileInclude(tdfct_list)
         | cur_dfct::cdr -> 
           let (typ,ident,param_list,loc) = match cur_dfct with {descdfct=Dfct(typ,ident,param_list,_) ; locdfct=loc} -> (typ,ident,param_list,loc) in
-            let (cur_tdfct, new_env, _) = compute_type_dfct new_env cur_dfct true 0 in (* true for global fct definition, 0 for fpcur *)
+            let (cur_tdfct, new_env, _) = compute_type_dfct new_env cur_dfct true (-8) in (* true for global fct definition, -8 for fpcur (first variable at -8) *)
             (check_main_in_env new_env typ ident param_list);
             (* add type of f in global env *)
             let rec get_fct_type param_list types_list =

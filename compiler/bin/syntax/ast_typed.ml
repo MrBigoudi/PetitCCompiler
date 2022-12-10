@@ -95,8 +95,11 @@ and tdinstr =
   | TDinstrVar of tdvar
   | TDinstr of tinstr
 
+(** Function parameters *)
+and tparam = TParam of typ * tident
+
 (** Function declarations *)
-and tdfct = TDfct of typ * tident * param list * tblock
+and tdfct = TDfct of typ * tident * tparam list * tblock
 
 (** Instruction blocks *)
 and tblock = TBlock of tdinstr list
