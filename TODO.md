@@ -14,7 +14,8 @@
 - [ ] add warnings
 - [x] store more infos in the typed_ast (the offset)
 - [ ] check the correctness of the offsets 
-- [ ] change the offset managment for parameters (+ nested functions)
+- [x] change the offset managment for parameters 
+- [ ] cheng the offset management for nested functions
 
 
 # For the 12/11
@@ -27,4 +28,4 @@
 
 # Generation de code
 
-- [ ] todo entirely
+- [ ] complete all failwiths

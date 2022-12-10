@@ -1,6 +1,6 @@
 # PetitCCompiler
 
-Compiler for a small part of the C programming language that we'll call `PetitC`, made with the `OCaml` language.
+[PetitCCompiler](https://github.com/MrBigoudi/PetitCCompiler.git) is a compiler for a small part of the C programming language that we'll call `PetitC`, made with the `OCaml` language.
 
 ---
 
