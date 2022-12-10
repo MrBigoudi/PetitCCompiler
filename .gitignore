@@ -33,3 +33,4 @@ _opam/
 *.conflicts
 *.out
 petitc
+lexingInt.c

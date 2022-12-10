@@ -30,8 +30,7 @@ and compile_const cst =
 (** Compile a variable
     val compile_var : Ast_typed.tident -> text *)
 and compile_var tident =
-  pushq (ind ~ofs:tident.offset rbp)
-
+  pushq (ind ~ofs:tident.offset rbp) (* return the variable adress *)
 
 (** Compile a unary operation 
     val compile_unop : Ast.unop -> Ast_typed.tdesc -> Ast.typ -> text *)
@@ -39,24 +38,73 @@ and compile_unop op te typ =
   compile_expr te ++
   popq rax ++
   (match op with 
-    | Unot    -> notq !%rax
+    | Unot    -> compile_unop_unot typ
     | Ustar   -> compile_unop_ustar typ
-    | Uamp    -> failwith "TODO"
-    | Uincr_l -> failwith "TODO"
-    | Udecr_l -> failwith "TODO"
-    | Uincr_r -> failwith "TODO"
-    | Udecr_r -> failwith "TODO"
-    | Uplus   -> failwith "TODO"
-    | Uminus  -> failwith "TODO") ++
+    | Uamp    -> compile_unop_uamp typ
+    | Uincr_l -> compile_unop_uincr typ
+    | Udecr_l -> compile_unop_udecr typ
+    | Uincr_r -> compile_unop_uincr typ (* diff with Uincr_l TODO ? *)
+    | Udecr_r -> compile_unop_udecr typ (* diff with Uincr_l TODO ? *)
+    | Uplus   -> compile_unop_uplus typ
+    | Uminus  -> compile_unop_uminus typ
+  ) ++
   pushq !%rax 
+
+(** Compile a not expression
+    val compile_unop_ustar : typ -> text *)
+and compile_unop_unot typ =
+  match typ with
+  | Tbool -> xorq (imm 0x1) !%rax
+  | Tfct _ -> assert false
+  | _ -> cmpq (imm 0x0) !%rax ++ sete !%al ++ movsbq !%al rax
 
 (** Compile a star expression
     val compile_unop_ustar : typ -> text *)
 and compile_unop_ustar typ =
   match typ with 
+  | Tptr _ -> movq (ind rax) !%rax (* address is in rax -> put the value in rax *)
+  | _ -> assert false
+
+(** Compile an ampersand expression
+    val compile_unop_uamp : tdesc -> text *)
+and compile_unop_uamp tdesc =
+  match tdesc with 
+  | Tptr _ -> nop (* do nothing, address already in rax *)
+  | _ -> assert false  
+
+(** Compile an incrementation expression
+    val compile_unop_uincr : typ -> text *)
+and compile_unop_uincr typ =
+  match typ with 
   | Tint -> incq (!%rax) (* if int then incr *)
   | Tbool -> movq (imm 0x1) !%rax (* if bool then true *)
-  | Tptr _ -> addq (imm 0x8) !%rax (* if pointer then add 0x8 = length of words *)
+  | Tptr _ -> addq (imm 0x8) !%rax (* if pointer then add 0x8 = length of words to curr address *)
+  | _ -> assert false
+
+(** Compile a derementation expression
+    val compile_unop_udecr : typ -> text *)
+and compile_unop_udecr typ =
+    match typ with 
+    | Tint -> decq (!%rax)
+    | Tbool -> xorq (imm 0x1) !%rax
+    | Tptr _ -> subq (imm 0x8) !%rax
+    | _ -> assert false
+
+(** Compile a unary plus
+    val compile_unop_uplus : typ -> text *)
+and compile_unop_uplus typ =
+  match typ with
+  | Tint -> nop (* do nothing *)
+  | Tbool -> nop (* do nothing *)
+  | _ -> assert false
+
+
+(** Compile a unary minus
+    val compile_unop_uminus : typ -> text *)
+and compile_unop_uminus typ =
+  match typ with
+  | Tint -> negq !%rax (* negate the value *)
+  | Tbool -> negq !%rax (* do nothing *)
   | _ -> assert false
 
 
