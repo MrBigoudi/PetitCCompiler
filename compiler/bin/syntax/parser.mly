@@ -23,7 +23,7 @@
 %token IF ELSE WHILE FOR RETURN BREAK CONTINUE
 %token EOF
 
-/* Les priorités et associativités des tokens */
+/* Tokens' priorities and associativities */
 
 %right ASSIGN
 %left OR
@@ -37,10 +37,9 @@
 %nonassoc endif
 %nonassoc ELSE
 
-/* Point d'entrée de la grammaire */
+/* Entry point of the grammar */
 %start file
 
-/* Type des valeurs renvoyées par l'analyseur syntaxique */
 %type <Ast.fileInclude> file
 
 %%

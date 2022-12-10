@@ -46,14 +46,13 @@ let union_dmap doub_map =
   let union_fun _ _ new_val = Some(new_val) in
     Smap.union union_fun oenv nenv
 
-
 (** val new_block_dmap : dmap -> dmap *)
 let new_block_dmap doub_map =
   let oenv = union_dmap doub_map in
   let nenv = Smap.empty in 
     { old_env = oenv; new_env = nenv }
 
-
+(* for debugging *)
 (** val print_dmap : dmap -> unit *)
 let print_dmap doub_map =
   let f key typ =
@@ -65,7 +64,7 @@ let print_dmap doub_map =
   Smap.iter f doub_map.new_env;
   print_string "\n";
 
-
+(* -------------------------------------------------- *)
 
 (** Expressions *)
 type texpression = {
@@ -81,7 +80,7 @@ and tdesc =
   | TEbinop of binop * texpression * texpression
   | TEassign of texpression * texpression
   | TEcall of ident * texpression list
-  | TEsizeof of typ (* maybe adding primitives *)
+  | TEsizeof of typ (* maybe adding primitives for potential future extensions *)
 
 (** Variable declarations *)
 type tdvar = TDvar of typ * ident * texpression option
