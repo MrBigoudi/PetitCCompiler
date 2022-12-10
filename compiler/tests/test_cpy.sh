@@ -324,6 +324,12 @@ case $option in
     	partie3;;
     "-gcc" )
         test_gcc;;
+    "-part1" )
+    	partie1;
+    	partie2;
+        bonus=1;
+    	partie1;
+    	partie2;;
     * )
         echo "usage : $0 <option> <compilo>"
         echo "spÃ©cifier une option parmi : "
@@ -343,7 +349,8 @@ case $option in
         echo "-all    : tout tester"
         echo "-allb   : tout tester en comptant le bonus"
         echo "-vall   : tout tester (verbose)"
-        echo "-vallb  : tout tester en comptant le bonus (verbose)";;
+        echo "-vallb  : tout tester en comptant le bonus (verbose)"
+        echo "-part1  : tester la première partie du projet";;
 
 esac
 echo
