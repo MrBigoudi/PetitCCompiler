@@ -47,6 +47,7 @@ You can check independently the `syntax correctness`, the `typing correctness` a
 |vall             | To test the syntax correctness, the typing correctness and the code production in verbose mode |
 |allb             | To test the syntax correctness, the typing correctness and the code production with nested functions |
 |vallb            | To test the syntax correctness, the typing correctness and the code production in verbose mode with nested functions |
+|part1            | To test the syntax and typing correctness with nested functions |
 
 To run the tests as you want, you can use the command:
 ```sh
