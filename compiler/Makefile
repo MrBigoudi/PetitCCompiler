@@ -32,18 +32,14 @@ all: help
 
 ## Build the compiler
 compiler: clean
-	@echo ""
-	@echo "********** Building compiler **********"
-	@echo ""
+	@printf "\n********** Building compiler **********\n"
 	dune build
 	@ln -s $(BIN_FOLDER)/$(TARGET) $(COMPILER)
 
 
 ## Build the compiler and run the tests : use TEST_FLAGS=-<option> to chose which test to run
 tests: compiler
-	@echo ""
-	@echo "********** Running tests **********"
-	@echo ""
+	@printf "\n********** Running tests **********\n"
 	@./$(TEST_FOLDER)/$(TEST) $(TEST_FLAGS) $(COMPILER)
 
 
@@ -58,9 +54,7 @@ explain:
 
 ## Clean tests produced files
 clean_tests:
-	@echo ""
-	@echo "********** Cleaning tests **********"
-	@echo ""
+	@printf "\n********** Cleaning tests **********\n"
 ifneq ("$(wildcard $(TEST_FOLDER)/a.out)","")
 	@rm $(TEST_FOLDER)/*.o
 	@rm $(TEST_FOLDER)/*out*
@@ -69,9 +63,7 @@ endif
 
 ## Delete build files and executables
 clean: clean_tests
-	@echo ""
-	@echo "********** Cleaning project **********"
-	@echo ""
+	@printf "\n********** Cleaning project **********\n"
 	dune clean
 ifneq ("$(wildcard $(COMPILER))","")
 	@rm $(COMPILER)
