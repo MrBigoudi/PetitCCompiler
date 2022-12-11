@@ -20,6 +20,8 @@ This will build a `main.exe` in the `bin` directory. However, to make things mor
 
 ### Run automated tests
 
+(Non inclus dans le rendu pour ne pas vous refournir vos propre tests)
+
 The compiler comes with a bunch of tests to check its features. These tests are run automatically using the script `compiler/tests/test_cpy.sh`. To run the tests you can just type:
 ```sh
 $ make tests
