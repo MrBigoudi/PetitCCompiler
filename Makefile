@@ -27,7 +27,7 @@ TEST_FLAGS := -v1
 .PHONY: all help clean tests explain main
 
 
-all: help
+all: compiler
 
 
 ## Build the compiler
