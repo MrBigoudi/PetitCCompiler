@@ -171,8 +171,17 @@ and compile_assign te1 te2 =
 (** Compile a function call
     val compile_call : tident -> texpression list -> text *)
 and compile_call f l =
+  let tmp_code = 
+    if String.equal f.ident "putchar" then
+      popq rdi
+    else if String.equal f.ident "malloc" then
+      popq rdi
+    else nop
+  in
   (* put all arguments in the stack *)
   List.fold_left (fun code e -> code ++ compile_expr e) nop l ++
+  (* put args in registers if standard functions *)
+  tmp_code ++
   (* call the function and put the result in rax *)
   call f.ident ++
   (* remove arguments from stack *)
