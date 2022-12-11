@@ -16,7 +16,7 @@ let rec compile_expr (exp: Ast_typed.texpression) =
   | TEbinop (op, te1, te2)   -> compile_binop op te1 te2
   | TEassign (te1, te2)      -> compile_assign te1 te2
   | TEcall (tident, te_list) -> compile_call tident te_list
-  | TEsizeof typ             -> failwith "TODO"
+  | TEsizeof typ             -> compile_sizeof typ
 
 (** Compile a constant 
     val compile_const : Ast.const -> text *)
@@ -164,7 +164,7 @@ and compile_assign te1 te2 =
   popq rbx ++ (* get assigned value *)
   popq rax ++ (* get address *)
   movq !%rbx (ind ~index:rax rbp) ++ (* move value inside correct address *)
-  movq (imm 0x1) !%rax (* the expression value is true *)
+  pushq (imm 0x1) (* the expression value is true *)
 
 
 (** Compile a function call
@@ -178,6 +178,22 @@ and compile_call f l =
   popn (8 * List.length l) ++ 
   (* return the function result *)
   pushq !%rax
+
+
+(** Compile a call to sizeof 
+    val compile_sizeof : typ -> text *)
+and compile_sizeof typ =
+  let rec get_size (typ: Ast.typ) =
+    match typ with
+    | Tfct(t,l) -> (get_size t)+(sizeof_list l 0)
+    | _ -> 0x8
+  and sizeof_list types res =
+    match types with
+    | [] -> res
+    | typ::cdr -> (sizeof_list cdr (res+(get_size typ)))
+  in
+    let size = (get_size typ)
+      in pushq (imm size)
 
 
 (** Compile an instruction 
