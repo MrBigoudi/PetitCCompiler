@@ -12,8 +12,8 @@ RESET   := $(shell tput -Txterm sgr0)
 TARGET_MAX_CHAR_NUM=20
 
 # FOLDERS
-BIN_FOLDER    := bin
-TEST_FOLDER   := tests
+BIN_FOLDER    := compiler/bin
+TEST_FOLDER   := compiler/tests
 SYNTAX_FOLDER := $(BIN_FOLDER)/syntax
 
 PARSER := $(SYNTAX_FOLDER)/parser.mly
@@ -33,7 +33,7 @@ all: help
 ## Build the compiler
 compiler: clean
 	@printf "\n********** Building compiler **********\n"
-	dune build
+	@cd compiler ; dune build
 	@ln -s $(BIN_FOLDER)/$(TARGET) $(COMPILER)
 
 
@@ -64,7 +64,7 @@ endif
 ## Delete build files and executables
 clean: clean_tests
 	@printf "\n********** Cleaning project **********\n"
-	dune clean
+	@cd compiler ; dune clean
 ifneq ("$(wildcard $(COMPILER))","")
 	@rm $(COMPILER)
 endif
