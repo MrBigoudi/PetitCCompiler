@@ -14,7 +14,7 @@ let rec compile_expr (exp: Ast_typed.texpression) =
   | TEvar tident             -> compile_var tident
   | TEunop (op, te)          -> compile_unop op te
   | TEbinop (op, te1, te2)   -> compile_binop op te1 te2
-  | TEassign (te1, te2)      -> failwith "TODO"
+  | TEassign (te1, te2)      -> compile_assign te1 te2
   | TEcall (tident, te_list) -> failwith "TODO"
   | TEsizeof typ             -> failwith "TODO"
 
@@ -110,27 +110,50 @@ and compile_unop_uminus typ =
 (** Compile binary operations
     val compile_binop : binop -> texpression -> texpression -> text *)
 and compile_binop op te1 te2 = 
-  compile_expr te1 ++
-  compile_expr te2 ++
-  popq rbx ++ popq rax ++
+  let beg = (
+    compile_expr te1 ++
+    compile_expr te2 ++
+    popq rbx ++ popq rax 
+  )
+  in
   (
   match op with 
-    | Arith(Badd) -> addq !%rbx !%rax
-    | Arith(Bsub) -> subq !%rbx !%rax
-    | Arith(Bmul) -> imulq !%rbx !%rax
-    | Arith(Bdiv) -> cqto ++ idivq !%rbx
-    | Arith(Bmod) -> compile_binop_mod()
-    | Logic(Beq)  -> cmpq !%rbx !%rax ++ sete !%al ++ movsbq !%al rax
-    | Logic(Bneq) -> cmpq !%rbx !%rax ++ setne !%al ++ movsbq !%al rax
-    | Logic(Blt)  -> cmpq !%rbx !%rax ++ setl !%al ++ movsbq !%al rax
-    | Logic(Ble)  -> cmpq !%rbx !%rax ++ setle !%al ++ movsbq !%al rax
-    | Logic(Bgt)  -> cmpq !%rbx !%rax ++ setg !%al ++ movsbq !%al rax
-    | Logic(Bge)  -> cmpq !%rbx !%rax ++ setge !%al ++ movsbq !%al rax
-    | AndOr(Band) -> failwith "TODO"
-    | AndOr(Bor)  -> failwith "TODO"
+    | Arith(Badd) -> beg ++ addq !%rbx !%rax
+    | Arith(Bsub) -> beg ++ subq !%rbx !%rax
+    | Arith(Bmul) -> beg ++ imulq !%rbx !%rax
+    | Arith(Bdiv) -> beg ++ cqto ++ idivq !%rbx
+    | Arith(Bmod) -> beg ++ compile_binop_mod()
+    | Logic(Beq)  -> beg ++ cmpq !%rbx !%rax ++ sete !%al ++ movsbq !%al rax
+    | Logic(Bneq) -> beg ++ cmpq !%rbx !%rax ++ setne !%al ++ movsbq !%al rax
+    | Logic(Blt)  -> beg ++ cmpq !%rbx !%rax ++ setl !%al ++ movsbq !%al rax
+    | Logic(Ble)  -> beg ++ cmpq !%rbx !%rax ++ setle !%al ++ movsbq !%al rax
+    | Logic(Bgt)  -> beg ++ cmpq !%rbx !%rax ++ setg !%al ++ movsbq !%al rax
+    | Logic(Bge)  -> beg ++ cmpq !%rbx !%rax ++ setge !%al ++ movsbq !%al rax
+    | AndOr op    -> compile_binop_andor te1 te2 op
   ) ++
   pushq !%rax
 
+(** Compile an and/or operation
+    val compile_binop_and : texpression -> texpression -> andor_binop -> text *)
+and compile_binop_andor te1 te2 op=
+  let imm1, imm2 = match op with 
+    | Band -> 0x0, 0x1
+    | Bor  -> 0x1, 0x0
+  in
+  compile_expr te1++
+  popq rax ++
+  (* test first expression then test second if one wasn't enough *)
+  cmpq (imm imm1) !%rax ++
+  je "1f" ++
+  compile_expr te2 ++
+  popq rax ++
+  cmpq (imm imm1) !%rax ++
+  je "1f" ++
+  movq (imm imm2) !%rax ++
+  jmp "2f" ++
+  label "1" ++
+  movq (imm imm1) !%rax ++
+  label "2"
 
 (** Compile a modulo operation
     val compile_binop_mod : text *)
@@ -141,6 +164,16 @@ and compile_binop_mod() =
   (* mov    %edx,%eax       from gcc *)
   failwith "TODO modulo"
 
+
+(** Compile an assignation 
+    val compile_assign : texpression -> texpression -> text *)
+and compile_assign te1 te2 =
+  compile_expr te1 ++
+  compile_expr te2 ++
+  popq rbx ++ (* get assigned value *)
+  popq rax ++ (* get address *)
+  movq !%rbx (ind ~index:rax rbp) ++ (* move value inside correct address *)
+  movq (imm 0x1) !%rax (* the expression value is true *)
 
 
 (** Compile an instruction 

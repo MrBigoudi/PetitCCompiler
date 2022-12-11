@@ -3,8 +3,7 @@
 #include <stdio.h>
 
 int main() {
-  int x = 3;
-  int y = 4;
-  int z = 0xcccccc;
-  return y%x;
+  int y;
+  if(y = 0) printf("ok");
+  else printf("notok");
 }
