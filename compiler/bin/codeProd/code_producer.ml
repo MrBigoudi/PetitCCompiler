@@ -15,7 +15,7 @@ let rec compile_expr (exp: Ast_typed.texpression) =
   | TEunop (op, te)          -> compile_unop op te
   | TEbinop (op, te1, te2)   -> compile_binop op te1 te2
   | TEassign (te1, te2)      -> compile_assign te1 te2
-  | TEcall (tident, te_list) -> failwith "TODO"
+  | TEcall (tident, te_list) -> compile_call tident te_list
   | TEsizeof typ             -> failwith "TODO"
 
 (** Compile a constant 
@@ -122,7 +122,7 @@ and compile_binop op te1 te2 =
     | Arith(Bsub) -> beg ++ subq !%rbx !%rax
     | Arith(Bmul) -> beg ++ imulq !%rbx !%rax
     | Arith(Bdiv) -> beg ++ cqto ++ idivq !%rbx
-    | Arith(Bmod) -> beg ++ compile_binop_mod()
+    | Arith(Bmod) -> failwith "TODO modulo"
     | Logic(Beq)  -> beg ++ cmpq !%rbx !%rax ++ sete !%al ++ movsbq !%al rax
     | Logic(Bneq) -> beg ++ cmpq !%rbx !%rax ++ setne !%al ++ movsbq !%al rax
     | Logic(Blt)  -> beg ++ cmpq !%rbx !%rax ++ setl !%al ++ movsbq !%al rax
@@ -155,15 +155,6 @@ and compile_binop_andor te1 te2 op=
   movq (imm imm1) !%rax ++
   label "2"
 
-(** Compile a modulo operation
-    val compile_binop_mod : text *)
-and compile_binop_mod() =
-  (* mov    -0x8(%rbp),%eax from gcc *)
-  (* cltd                   from gcc *)
-  (* idivl  -0xc(%rbp)      from gcc *)
-  (* mov    %edx,%eax       from gcc *)
-  failwith "TODO modulo"
-
 
 (** Compile an assignation 
     val compile_assign : texpression -> texpression -> text *)
@@ -174,6 +165,19 @@ and compile_assign te1 te2 =
   popq rax ++ (* get address *)
   movq !%rbx (ind ~index:rax rbp) ++ (* move value inside correct address *)
   movq (imm 0x1) !%rax (* the expression value is true *)
+
+
+(** Compile a function call
+    val compile_call : tident -> texpression list -> text *)
+and compile_call f l =
+  (* put all arguments in the stack *)
+  List.fold_left (fun code e -> code ++ compile_expr e) nop l ++
+  (* call the function and put the result in rax *)
+  call f.ident ++ 
+  (* remove arguments from stack *)
+  popn (8 * List.length l) ++ 
+  (* return the function result *)
+  pushq !%rax
 
 
 (** Compile an instruction 
