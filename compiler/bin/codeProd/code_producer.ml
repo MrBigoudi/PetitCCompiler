@@ -217,7 +217,7 @@ and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr)
   let tdesci, env = instr.tdesci, instr.env in
   match tdesci with 
   | TIempt                        -> global_code, cur_code
-  | TIexpr exp                    -> global_code, compile_expr exp ++ cur_code
+  | TIexpr exp                    -> global_code, cur_code ++ compile_expr exp
   | TIif (exp, i1, i2)            -> failwith "TODO"
   | TIwhile (exp, ins)            -> failwith "TODO"
   | TIfor (var, exp, exp_list, i) -> failwith "TODO"
@@ -239,7 +239,7 @@ and compile_instr_ret global_code cur_code exp =
         ret
       )
     | None -> ret 
-  in global_code, code ++ cur_code
+  in global_code, cur_code ++ code
 
 
 (** Compile a variable declaration 
@@ -257,7 +257,7 @@ and compile_decl_var (global_code: text) (cur_code: text) (dvar: Ast_typed.tdvar
       popq rax ++
       (* stocke it at the correct position *)
       movq !%rax (ind ~ofs:tident.offset rbp)
-    in global_code, code ++ cur_code
+    in global_code, cur_code ++ code
       
 
 
@@ -284,7 +284,7 @@ and compile_block (global_code: text) (cur_code: text) (blck: Ast_typed.tblock) 
     in (aux l global_code cur_code)
 
 
-(** Compile a function declarations 
+(** Compile a function declaration
     val compile_decl_fun : text -> text -> tdfct -> text * text *)
 and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct) =
   match dfct with TDfct(typ, tident, tparam_l, tblock) ->
@@ -294,7 +294,7 @@ and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct
       else
         (label tident.ident)
     in
-    let code =
+    let beg_code =
       is_main ++
       (* save rbp *)
       pushq !%rbp ++
@@ -304,7 +304,7 @@ and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct
     let gbl_c, cur_c = compile_block global_code cur_code tblock 
     in
       let code = 
-        code ++ 
+        beg_code ++ 
         cur_c ++
         (* put back rsp *)
         popn (-tident.offset) ++
