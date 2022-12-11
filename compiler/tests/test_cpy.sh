@@ -9,7 +9,7 @@ shopt -s nullglob
 # script de test pour le projet de compilation
 
 option=$1
-compilo=${BASE_DIR}/../$2
+compilo=${BASE_DIR}/../../$2
 score=0
 max=0
 bonus=0
