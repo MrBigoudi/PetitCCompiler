@@ -22,6 +22,7 @@ let rec compile_expr (exp: Ast_typed.texpression) =
 (** Compile a constant 
     val compile_const : Ast.const -> text *)
 and compile_const cst =
+  (* comment "compile const" ++ *)
   match cst with
   | Int i -> pushq (imm i)
   | True -> pushq (imm 0x1)
@@ -31,6 +32,7 @@ and compile_const cst =
 (** Compile a variable
     val compile_var : Ast_typed.tident -> text *)
 and compile_var tident =
+  (* comment "compile var" ++ *)
   pushq (ind ~ofs:tident.offset rbp) (* return the variable adress *)
 
 (** Compile a unary operation 
@@ -172,26 +174,43 @@ and compile_assign te1 te2 =
   pushq (imm 0x1) (* the expression value is true *)
 
 
+(** Compile a call to a standard function
+    val compile_call_std : ident -> texpression list -> text *)
+and compile_call_std ident te_list =
+  let te = match te_list with 
+    | [te] -> te
+    | _ -> assert false (* only malloc and putchar for now *)
+  in
+  compile_expr te ++
+  comment "caller -> put args in rdi (cause standard function)" ++
+  popq rdi++
+  comment "caller -> call func" ++
+  call ident ++
+  comment "caller -> stack the result" ++
+  pushq !%rax ++
+  comment "caller -> end "
+  
+
+
 (** Compile a function call
     val compile_call : tident -> texpression list -> text *)
 and compile_call f l =
-  let tmp_code = 
-    if String.equal f.ident "putchar" then
-      popq rdi
-    else if String.equal f.ident "malloc" then
-      popq rdi
-    else nop
-  in
+  if (String.equal f.ident "putchar") || (String.equal f.ident "malloc") 
+    then (compile_call_std f.ident l) 
+  else
   (* put all arguments in the stack *)
+  comment "caller -> put args in stack" ++
   List.fold_left (fun code e -> code ++ compile_expr e) nop l ++
-  (* put args in registers if standard functions *)
-  tmp_code ++
-  (* call the function and put the result in rax *)
+  (* call the function *)
+  comment "caller -> call func" ++
   call f.ident ++
   (* remove arguments from stack *)
+  comment "caller -> unstack args" ++
   popn (8 * List.length l) ++ 
   (* return the function result *)
-  pushq !%rax
+  comment "caller -> stack the result" ++
+  pushq !%rax ++
+  comment "caller -> end "
 
 
 (** Compile a call to sizeof 
@@ -217,7 +236,7 @@ and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr)
   let tdesci, env = instr.tdesci, instr.env in
   match tdesci with 
   | TIempt                        -> global_code, cur_code
-  | TIexpr exp                    -> global_code, cur_code ++ compile_expr exp
+  | TIexpr exp                    -> global_code, cur_code ++ compile_expr exp ++ popq rax
   | TIif (exp, i1, i2)            -> failwith "TODO"
   | TIwhile (exp, ins)            -> failwith "TODO"
   | TIfor (var, exp, exp_list, i) -> failwith "TODO"
@@ -235,10 +254,24 @@ and compile_instr_ret global_code cur_code exp =
     | Some(exp) ->
       (
         compile_expr exp ++ 
+        (* put result in rax *)
+        comment "callee -> put result in rax" ++
         popq rax ++ 
+        comment "callee -> unstack activation table" ++
+        leave ++
+        comment "callee -> end" ++
         ret
       )
-    | None -> ret 
+    | None ->
+      (
+        (* put 0x0 in rax *)
+        comment "callee -> put result in rax (0x0 cause void)" ++
+        movq (imm 0x0) !%rax ++ 
+        comment "callee -> unstack activation table" ++
+        leave ++
+        comment "callee -> end" ++
+        ret
+      )
   in global_code, cur_code ++ code
 
 
@@ -258,8 +291,6 @@ and compile_decl_var (global_code: text) (cur_code: text) (dvar: Ast_typed.tdvar
       (* stocke it at the correct position *)
       movq !%rax (ind ~ofs:tident.offset rbp)
     in global_code, cur_code ++ code
-      
-
 
 
 (** Compile an instruction declaration 
@@ -288,29 +319,36 @@ and compile_block (global_code: text) (cur_code: text) (blck: Ast_typed.tblock) 
     val compile_decl_fun : text -> text -> tdfct -> text * text *)
 and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct) =
   match dfct with TDfct(typ, tident, tparam_l, tblock) ->
-    let is_main =
-      if String.equal tident.ident "main" 
-        then (globl "main" ++ label "main")
-      else
-        (label tident.ident)
-    in
     let beg_code =
-      is_main ++
+      label tident.ident ++
       (* save rbp *)
+      comment "callee -> save rbp" ++
       pushq !%rbp ++
-      (* update rsp -> rbp + offset *)
+      movq  !%rsp !%rbp ++
+      (* allocate activation table *)
+      comment "callee -> allocate activation table" ++
       pushn (-tident.offset)
     in 
-    let gbl_c, cur_c = compile_block global_code cur_code tblock 
-    in
-      let code = 
-        beg_code ++ 
-        cur_c ++
-        (* put back rsp *)
-        popn (-tident.offset) ++
-        (* get old rbp value back *)
-        popq rbp
-      in global_code ++ gbl_c, cur_code ++ code
+    let gbl_c, cur_c = compile_block global_code nop tblock
+      in 
+      (* if void function then add ret *)
+      let end_code = match typ with 
+        | Tfct(Tvoid,_) -> 
+          (
+            comment "callee -> put result in rax (0x0 cause no return)" ++
+            movq (imm 0x0) !%rax ++ 
+            comment "callee -> unstack activation table" ++
+            leave ++
+            comment "callee -> end" ++
+            ret
+          )
+        | _ -> nop
+      in
+        let code = 
+          beg_code ++ 
+          cur_c ++
+          end_code
+        in gbl_c, cur_code ++ code
 
 
 (** Compile a file include representing a program 
@@ -331,13 +369,13 @@ and compile_file_include (global_code: text) (cur_code: text) (tprog: Ast_typed.
 (** Compile a typed ast and put the resulting assembler in the output file
     val compile_program : Ast_typed.tfileInclude -> string -> program *)
 let compile_program (p:Ast_typed.tfileInclude) ofile =
-  let global_code, cur_code = (compile_file_include nop nop p) in
+  let global_code, cur_code = (compile_file_include (globl "main") nop p) in
   let p = 
     { text = 
         global_code ++
         cur_code ++
         movq (imm 0) !%rax ++ (* exit *)
-        ret;    
+        ret;
         data = nop
     }
   in

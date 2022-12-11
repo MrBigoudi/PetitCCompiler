@@ -99,7 +99,7 @@ and compute_type_expr env e fpcur =
   let loc = e.loc in
   match e.desc with 
   | Econst const -> let desc, typ = type_const const in desc, typ, fpcur
-  | Evar var -> let desc, typ = (type_var var env loc fpcur)in desc, typ, fpcur
+  | Evar var -> let desc, typ = (type_var var env loc fpcur) in desc, typ, fpcur
   | Eunop (op, e) -> let desc, typ = (type_unop env op e loc fpcur) in desc, typ, fpcur
   | Ebinop (op, e1, e2) -> (type_binop env op e1 e2 loc fpcur)
   | Eassign (e1, e2) -> (type_assign env e1 e2 loc fpcur)
@@ -143,7 +143,7 @@ and type_unop env op e loc fpcur =
 and type_binop env op e1 e2 loc fpcur = 
   let (t1, fpmax1) = (type_expr env e1 fpcur) in
   let (t2, fpmax2) = (type_expr env e2 fpcur) in
-  let fpmax = (max fpmax1 fpmax2) in
+  let fpmax = (min fpmax1 fpmax2) in
   let t1_type = t1.typ in 
   let t2_type = t2.typ in 
   match op with
@@ -183,7 +183,7 @@ and type_binop env op e1 e2 loc fpcur =
 and type_assign env e1 e2 loc fpcur =
   let (te1, fpmax1) = type_expr env e1 fpcur in
   let (te2, fpmax2) = type_expr env e2 fpcur in
-  let fpmax = (max fpmax1 fpmax2) in
+  let fpmax = (min fpmax1 fpmax2) in
   if (is_lvalue e1) && (equ_type te1.typ te2.typ) then TEassign(te1, te2), te1.typ, fpmax else 
     (if (is_lvalue e1) then (handle_error 12 loc None) else (handle_error 11 loc None))
 
@@ -210,7 +210,7 @@ and type_call env id e_list loc fpcur =
               if not (equ_type te.typ p) 
                 then (handle_error 17 e.loc (Some(id))) (* incompatible types *)
                 (* recursive call *)
-                else (test_param_fun_call e_cdr p_cdr (te_list@[te]) (max fpmax fptmp))
+                else (test_param_fun_call e_cdr p_cdr (te_list@[te]) (min fpmax fptmp))
           in (test_param_fun_call e_list param_typ [] fpcur)
       | _ -> handle_error 31 loc (Some(id))
 
@@ -250,7 +250,7 @@ and compute_type_if env e i1 i2 t0 locdi fpcur =
     else 
       let (ti1, fpmax1) = (type_instr env i1 t0 locdi fpcur) in
       let (ti2, fpmax2) = (type_instr env i2 t0 locdi fpcur) in
-        TIif(te, ti1, ti2), env, (max fpmax1 fpmax2)
+        TIif(te, ti1, ti2), env, (min fpmax1 fpmax2)
 
 (** val compute_type_while : dmap -> expression -> instr -> typ -> dinstr.loc -> int -> tdesci * dmap * int *)
 and compute_type_while env e i t0 locdi fpcur =
@@ -270,7 +270,7 @@ and compute_type_for env dvar e elist i t0 locdi fpcur =
     match exprList with
     | [] -> acc, fpmax
     | e::cdr -> let (texpr, fptmp) = (type_expr env e fpcur) in
-                  (createTExprList cdr (acc@[texpr]) env (max fpmax fptmp))
+                  (createTExprList cdr (acc@[texpr]) env (min fpmax fptmp))
   in
   let tdvar, new_env =
     match dvar with 
@@ -309,7 +309,7 @@ and compute_type_block env di_list t0 from_dfct fpcur =
     | [] -> TIblock(TBlock(tdi_list)), env, fpmax (* restore the previous env *)
     | cur_di::cdr ->
       let (cur_tdi, new_env, fptmp) = compute_type_dinstr new_env cur_di t0 fpcur in
-        (compute_type_block_instr cdr new_env (tdi_list@[cur_tdi]) (max fpmax fptmp)) (* update the block dmap *)
+        (compute_type_block_instr cdr new_env (tdi_list@[cur_tdi]) (min fpmax fptmp)) (* update the block dmap *)
   in 
     (* if new block from decl fun then do not create a new env *)
     if from_dfct then (compute_type_block_instr di_list env [] fpcur)
@@ -341,11 +341,11 @@ and compute_type_dinstr_var env v locdi fpcur =
           match exp with 
           | None -> TDinstrVar(TDvar(typ, {ident = ident; offset = new_fp}, None)), (add_new_dmap ident typ env), new_fp
           | Some(e) -> 
-            let (e_tdesc, e_typ, next_fp) = (compute_type_expr env e new_fp) in
+            let (e_tdesc, e_typ, _) = (compute_type_expr env e new_fp) in
               (* typ x = e; -> test if 'typ' equivalent to type of 'e'*)
               if not (equ_type e_typ typ) 
                 then (handle_error 25 locdi (Some(ident)))
-                else TDinstrVar(TDvar(typ, {ident = ident; offset = new_fp}, Some({tdesc=e_tdesc; typ=e_typ}))), (add_new_dmap ident typ env), next_fp
+                else TDinstrVar(TDvar(typ, {ident = ident; offset = new_fp}, Some({tdesc=e_tdesc; typ=e_typ}))), (add_new_dmap ident typ env), new_fp
 
 
 (** val compute_type_dinstr_fct : dmap -> dfct -> int -> tdinstr * dmap * int *)
@@ -416,7 +416,7 @@ and type_ast parsed_ast =
         | [] -> TFileInclude(tdfct_list)
         | cur_dfct::cdr -> 
           let (typ,ident,param_list,loc) = match cur_dfct with {descdfct=Dfct(typ,ident,param_list,_) ; locdfct=loc} -> (typ,ident,param_list,loc) in
-            let (cur_tdfct, new_env, _) = compute_type_dfct new_env cur_dfct true (-8) in (* true for global fct definition, -8 for fpcur (first variable at -8) *)
+            let (cur_tdfct, new_env, _) = compute_type_dfct new_env cur_dfct true 0 in (* true for global fct definition *)
             (check_main_in_env new_env typ ident param_list);
             (* add type of f in global env *)
             let rec get_fct_type param_list types_list =
