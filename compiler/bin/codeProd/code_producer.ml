@@ -237,7 +237,10 @@ and compile_decl_var (global_code: text) (cur_code: text) (dvar: Ast_typed.tdvar
 (** Compile an instruction declaration 
     val compile_decl_instr : text -> text -> tdinstr -> text * text *)
 and compile_decl_instr (global_code: text) (cur_code: text) (dinstr: Ast_typed.tdinstr) =
-  failwith "TODO compile decl instr"
+  match dinstr with
+  | TDinstrFct tdfct -> compile_decl_fun global_code cur_code tdfct
+  | TDinstrVar tdvar -> compile_decl_var global_code cur_code tdvar
+  | TDinstr tinstr -> compile_instr global_code cur_code tinstr
 
 
 (** Compile an instruction block 
@@ -256,7 +259,17 @@ and compile_block (global_code: text) (cur_code: text) (blck: Ast_typed.tblock) 
 (** Compile a function declarations 
     val compile_decl_fun : text -> text -> tdfct -> text * text *)
 and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct) =
-  failwith "TODO compile decl fun"
+  match dfct with TDfct(typ, tident, tparam_l, tblock) ->
+    let code =
+      label tident.ident ++
+      pushq !%rbp ++
+      movq !%rsp !%rbp ++
+      pushn tident.offset
+    in 
+    let gbl_c, cur_c = compile_block global_code cur_code tblock 
+    in
+    let code = code ++ cur_c ++ popn tident.offset
+    in global_code ++ gbl_c, cur_code ++ code
 
 
 (** Compile a file include representing a program 
