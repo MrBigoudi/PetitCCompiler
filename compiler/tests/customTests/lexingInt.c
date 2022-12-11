@@ -3,7 +3,8 @@
 #include <stdio.h>
 
 int main() {
-  int y;
-  if(y = 0) printf("ok");
-  else printf("notok");
+  for(int i=0xcccc; i<0xffff; i++){
+    if(i==0xdddd)
+      break;
+  }
 }

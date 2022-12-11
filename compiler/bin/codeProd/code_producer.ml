@@ -196,17 +196,18 @@ and compile_sizeof typ =
       in pushq (imm size)
 
 
+
 (** Compile an instruction 
     val compile_instr : text -> text -> tinstr -> text * text *)
 and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr) =
   let tdesci, env = instr.tdesci, instr.env in
   match tdesci with 
-  | TIempt                        -> failwith "TODO"
-  | TIexpr exp                    -> failwith "TODO"
+  | TIempt                        -> global_code, cur_code
+  | TIexpr exp                    -> global_code, compile_expr exp ++ cur_code
   | TIif (exp, i1, i2)            -> failwith "TODO"
   | TIwhile (exp, ins)            -> failwith "TODO"
   | TIfor (var, exp, exp_list, i) -> failwith "TODO"
-  | TIblock block                 -> failwith "TODO"
+  | TIblock block                 -> compile_block global_code cur_code block
   | TIret exp                     -> compile_instr_ret global_code cur_code exp
   | TIbreak                       -> failwith "TODO"
   | TIcontinue                    -> failwith "TODO"
@@ -224,7 +225,7 @@ and compile_instr_ret global_code cur_code exp =
         ret
       )
     | None -> ret 
-  in code ++ cur_code, global_code
+  in global_code, code ++ cur_code
 
 
 (** Compile a variable declaration 
@@ -242,7 +243,14 @@ and compile_decl_instr (global_code: text) (cur_code: text) (dinstr: Ast_typed.t
 (** Compile an instruction block 
     val compile_block : text -> text -> tblock -> text * text *)
 and compile_block (global_code: text) (cur_code: text) (blck: Ast_typed.tblock) =
-  failwith "TODO compile block"
+  match blck with TBlock l ->
+    let rec aux tdi_l gbl_c cur_c = 
+      match tdi_l with
+      | [] -> gbl_c, cur_c
+      | tdi::cdr ->
+        let gbl_c, cur_c = (compile_decl_instr gbl_c cur_c tdi)
+          in (aux cdr gbl_c cur_c)
+    in (aux l global_code cur_code)
 
 
 (** Compile a function declarations 
