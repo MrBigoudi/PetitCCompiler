@@ -42,7 +42,7 @@ and compile_unop op te =
   (match op with 
     | Unot    -> compile_unop_unot typ
     | Ustar   -> compile_unop_ustar typ
-    | Uamp    -> compile_unop_uamp typ
+    | Uamp    -> compile_unop_uamp te
     | Uincr_l -> compile_unop_uincr typ
     | Udecr_l -> compile_unop_udecr typ
     | Uincr_r -> compile_unop_uincr typ (* diff with Uincr_l TODO ? *)
@@ -68,11 +68,15 @@ and compile_unop_ustar typ =
   | _ -> assert false
 
 (** Compile an ampersand expression
-    val compile_unop_uamp : tdesc -> text *)
-and compile_unop_uamp tdesc =
-  match tdesc with 
+    val compile_unop_uamp : texpression -> -> text *)
+and compile_unop_uamp te =
+  match te.typ with 
   | Tptr _ -> nop (* do nothing, address already in rax *)
-  | _ -> assert false  
+  | _ -> begin
+          match te.tdesc with 
+          | TEvar id -> movq (ind ~ofs:id.offset rbp) !%rax
+          | _ -> assert false
+        end
 
 (** Compile an incrementation expression
     val compile_unop_uincr : typ -> text *)
@@ -241,7 +245,21 @@ and compile_instr_ret global_code cur_code exp =
 (** Compile a variable declaration 
     val compile_decl_var : text -> text -> tdvar -> text * text *)
 and compile_decl_var (global_code: text) (cur_code: text) (dvar: Ast_typed.tdvar) =
-  failwith "TODO compile decl var"
+  match dvar with TDvar(typ, tident, texp) ->
+    let value =
+      match texp with 
+      | Some(exp) -> compile_expr exp
+      | None -> pushq (imm 0x0) (* default value *)
+    in
+    let code =
+      (* get the variable value in rax *)
+      value ++
+      popq rax ++
+      (* stocke it at the correct position *)
+      movq !%rax (ind ~ofs:tident.offset rbp)
+    in global_code, code ++ cur_code
+      
+
 
 
 (** Compile an instruction declaration 
