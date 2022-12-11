@@ -3,9 +3,8 @@
 #include <stdio.h>
 
 int main() {
-  int x;
-  {
-    int x() { return 0; }
-    x = 1;
-  }
+  int x = 3;
+  int y = 4;
+  int z = 0xcccccc;
+  return y%x;
 }

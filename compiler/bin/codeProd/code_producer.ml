@@ -8,12 +8,12 @@ let pushn n = subq (imm n) !%rsp
 (** Compile a typed expression
     val compile_expr : Ast_typed.texpression -> text *)
 let rec compile_expr (exp: Ast_typed.texpression) =
-  let tdesc, typ = exp.tdesc, exp.typ in
+  let tdesc = exp.tdesc in
   match tdesc with 
   | TEconst cst              -> compile_const cst
   | TEvar tident             -> compile_var tident
-  | TEunop (op, te)          -> compile_unop op te typ
-  | TEbinop (op, te1, te2)   -> failwith "TODO"
+  | TEunop (op, te)          -> compile_unop op te
+  | TEbinop (op, te1, te2)   -> compile_binop op te1 te2
   | TEassign (te1, te2)      -> failwith "TODO"
   | TEcall (tident, te_list) -> failwith "TODO"
   | TEsizeof typ             -> failwith "TODO"
@@ -33,8 +33,9 @@ and compile_var tident =
   pushq (ind ~ofs:tident.offset rbp) (* return the variable adress *)
 
 (** Compile a unary operation 
-    val compile_unop : Ast.unop -> Ast_typed.tdesc -> Ast.typ -> text *)
-and compile_unop op te typ =
+    val compile_unop : Ast.unop -> Ast_typed.texpression -> text *)
+and compile_unop op te =
+  let typ = te.typ in
   compile_expr te ++
   popq rax ++
   (match op with 
@@ -98,7 +99,6 @@ and compile_unop_uplus typ =
   | Tbool -> nop (* do nothing *)
   | _ -> assert false
 
-
 (** Compile a unary minus
     val compile_unop_uminus : typ -> text *)
 and compile_unop_uminus typ =
@@ -106,6 +106,40 @@ and compile_unop_uminus typ =
   | Tint -> negq !%rax (* negate the value *)
   | Tbool -> negq !%rax (* do nothing *)
   | _ -> assert false
+
+(** Compile binary operations
+    val compile_binop : binop -> texpression -> texpression -> text *)
+and compile_binop op te1 te2 = 
+  compile_expr te1 ++
+  compile_expr te2 ++
+  popq rbx ++ popq rax ++
+  (
+  match op with 
+    | Arith(Badd) -> addq !%rbx !%rax
+    | Arith(Bsub) -> subq !%rbx !%rax
+    | Arith(Bmul) -> imulq !%rbx !%rax
+    | Arith(Bdiv) -> cqto ++ idivq !%rbx
+    | Arith(Bmod) -> compile_binop_mod()
+    | Logic(Beq)  -> cmpq !%rbx !%rax ++ sete !%al ++ movsbq !%al rax
+    | Logic(Bneq) -> cmpq !%rbx !%rax ++ setne !%al ++ movsbq !%al rax
+    | Logic(Blt)  -> cmpq !%rbx !%rax ++ setl !%al ++ movsbq !%al rax
+    | Logic(Ble)  -> cmpq !%rbx !%rax ++ setle !%al ++ movsbq !%al rax
+    | Logic(Bgt)  -> cmpq !%rbx !%rax ++ setg !%al ++ movsbq !%al rax
+    | Logic(Bge)  -> cmpq !%rbx !%rax ++ setge !%al ++ movsbq !%al rax
+    | AndOr(Band) -> failwith "TODO"
+    | AndOr(Bor)  -> failwith "TODO"
+  ) ++
+  pushq !%rax
+
+
+(** Compile a modulo operation
+    val compile_binop_mod : text *)
+and compile_binop_mod() =
+  (* mov    -0x8(%rbp),%eax from gcc *)
+  (* cltd                   from gcc *)
+  (* idivl  -0xc(%rbp)      from gcc *)
+  (* mov    %edx,%eax       from gcc *)
+  failwith "TODO modulo"
 
 
 
