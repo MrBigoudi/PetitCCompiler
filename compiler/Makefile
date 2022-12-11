@@ -62,7 +62,6 @@ clean_tests:
 	@echo "********** Cleaning tests **********"
 	@echo ""
 ifneq ("$(wildcard $(TEST_FOLDER)/a.out)","")
-	@rm $(TEST_FOLDER)/*.o
 	@rm $(TEST_FOLDER)/*out*
 endif
 

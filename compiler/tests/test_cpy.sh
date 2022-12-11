@@ -201,11 +201,13 @@ for f in ${BASE_DIR}/exec/*.c; do
     fi
     echo -n "."
     asm=${BASE_DIR}/exec/`basename $f .c`.s
+    # echo "asm : ${asm}"
     rm -f $asm
     expected=${BASE_DIR}/exec/`basename $f .c`.out
     max=`expr $max + 1`;
     if compile $f; then
 	rm -f out
+    rm -f a.out
 	score_comp=`expr $score_comp + 1`;
 	if gcc -no-pie $asm && ./a.out > out; then
 	    score_out=`expr $score_out + 1`;

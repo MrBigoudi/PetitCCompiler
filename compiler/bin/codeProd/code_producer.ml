@@ -5,6 +5,7 @@ open Format
 let popn n = addq (imm n) !%rsp
 let pushn n = subq (imm n) !%rsp
 
+
 (** Compile a typed expression
     val compile_expr : Ast_typed.texpression -> text *)
 let rec compile_expr (exp: Ast_typed.texpression) =
@@ -173,7 +174,7 @@ and compile_call f l =
   (* put all arguments in the stack *)
   List.fold_left (fun code e -> code ++ compile_expr e) nop l ++
   (* call the function and put the result in rax *)
-  call f.ident ++ 
+  call f.ident ++
   (* remove arguments from stack *)
   popn (8 * List.length l) ++ 
   (* return the function result *)
@@ -260,16 +261,29 @@ and compile_block (global_code: text) (cur_code: text) (blck: Ast_typed.tblock) 
     val compile_decl_fun : text -> text -> tdfct -> text * text *)
 and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct) =
   match dfct with TDfct(typ, tident, tparam_l, tblock) ->
+    let is_main =
+      if String.equal tident.ident "main" 
+        then (globl "main" ++ label "main")
+      else
+        (label tident.ident)
+    in
     let code =
-      label tident.ident ++
+      is_main ++
+      (* save rbp *)
       pushq !%rbp ++
-      movq !%rsp !%rbp ++
-      pushn tident.offset
+      (* update rsp -> rbp + offset *)
+      pushn (-tident.offset)
     in 
     let gbl_c, cur_c = compile_block global_code cur_code tblock 
     in
-    let code = code ++ cur_c ++ popn tident.offset
-    in global_code ++ gbl_c, cur_code ++ code
+      let code = 
+        code ++ 
+        cur_c ++
+        (* put back rsp *)
+        popn (-tident.offset) ++
+        (* get old rbp value back *)
+        popq rbp
+      in global_code ++ gbl_c, cur_code ++ code
 
 
 (** Compile a file include representing a program 
@@ -293,18 +307,11 @@ let compile_program (p:Ast_typed.tfileInclude) ofile =
   let global_code, cur_code = (compile_file_include nop nop p) in
   let p = 
     { text = 
-        (* main function *)
-        globl "main" ++ label "main" ++
-        movq !%rsp !%rbp ++
         global_code ++
+        cur_code ++
         movq (imm 0) !%rax ++ (* exit *)
-        ret ++
-        (* TODO putchar function *)
-        (* TODO malloc function *)
-        (* TODO sizeof function *)
-        cur_code;
-      
-      data = nop (* empty I guess ? *)
+        ret;    
+        data = nop
     }
   in
   let f = open_out ofile in
