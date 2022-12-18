@@ -201,13 +201,7 @@ and type_call env id e_list loc offset_env =
         (* test if given parameters are correct *)
         let rec test_param_fun_call e_list param_typ_list te_list =
           match (e_list,param_typ_list) with
-          | ([],[]) -> 
-              begin
-                try
-                  let offset = (search_dmap id offset_env) in
-                    TEcall({ident = id; offset = offset}, te_list), ret_typ
-                with _ -> handle_error 9 loc (Some(id))
-              end
+          | ([],[]) -> TEcall({ident = id; offset = 0}, te_list), ret_typ
           | ([],_) -> (handle_error 15 loc (Some(id))) (* not enough params *)
           | (_,[]) -> (handle_error 16 loc (Some(id))) (* too many params *)
           | (e::e_cdr), (p::p_cdr) ->
@@ -397,7 +391,7 @@ and compute_type_dfct env fct is_global fpcur offset_env =
           (* adding fun prototype to new env and adding all parameters to new env *)
           in let fun_typ = Tfct(typ,p_types) in
             let new_env = try (add_new_dmap_typ ident fun_typ new_env) with _ -> (handle_error 23 locdi (Some(ident)))
-            in let new_plist, new_fp, fct_offset_env = param_list_to_tparam_list p_list [] 16 offset_env 
+            in let new_plist, new_fp, fct_offset_env = param_list_to_tparam_list p_list [] 16 (new_block_dmap offset_env) 
             (* checking return type of the function *)
               in
                 (* new environment with only the function declaration *)
