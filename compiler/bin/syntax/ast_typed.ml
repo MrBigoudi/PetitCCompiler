@@ -4,6 +4,7 @@ open Ast
 
 module Smap = Map.Make(String)
 type env = typ Smap.t
+type offset_env = int Smap.t
 
 exception Environnement_error of string
 
@@ -12,6 +13,7 @@ type tident = {ident: ident ; offset : int}
 
 (** double maps : using old and new environnements for blocks *)
 type dmap = { old_env : env ; new_env : env}
+type dmap_offset = {old_env : offset_env ; new_env : offset_env}
 
 (** val search_dmap : ident -> dmap -> typ *)
 let search_dmap id doub_map = 
@@ -56,9 +58,52 @@ let new_block_dmap doub_map =
   let nenv = Smap.empty in 
     { old_env = oenv; new_env = nenv }
 
+(** val search_dmap : ident -> dmap -> typ *)
+let search_dmap_typ id (doub_map: dmap) = 
+  let oenv = doub_map.old_env in
+  let nenv = doub_map.new_env in
+  match Smap.find_opt id oenv, Smap.find_opt id nenv with
+    | None, None -> raise (Environnement_error("no id found"))
+    | None, Some(t) -> t
+    | Some(t), None -> t
+    | _, Some(t2) -> t2
 
-(** val print_dmap : dmap -> unit *)
-let print_dmap doub_map =
+(** val in_new_env_dmap : ident -> dmap -> bool *)
+let in_new_env_dmap_typ id (doub_map: dmap) =
+  let nenv = doub_map.new_env in 
+  Smap.mem id nenv
+
+(** val add_new_dmap : ident -> typ -> dmap -> dmap ->  *)
+let add_new_dmap_typ id ty (doub_map: dmap) =
+  let nenv = doub_map.new_env in
+  if Smap.mem id nenv 
+    then raise (Environnement_error("id already existing")) 
+    else ({ old_env = doub_map.old_env ; new_env = (Smap.add id ty nenv) }:dmap)
+
+(** val add_old_dmap : ident -> typ -> dmap -> dmap *)
+let add_old_dmap_typ id ty (doub_map: dmap) =
+  let oldv = doub_map.old_env in
+  if Smap.mem id oldv
+    then raise (Environnement_error("id already existing")) 
+    else ({ old_env = (Smap.add id ty oldv) ; new_env = doub_map.new_env }:dmap)
+
+(** val union_dmap : dmap -> env *)
+let union_dmap_typ (doub_map: dmap) =
+  let oenv = doub_map.old_env in
+  let nenv = doub_map.new_env in
+  let union_fun _ _ new_val = Some(new_val) in
+    Smap.union union_fun oenv nenv
+
+
+(** val new_block_dmap : dmap -> dmap *)
+let new_block_dmap_typ (doub_map: dmap) =
+  let oenv = union_dmap_typ doub_map in
+  let nenv = Smap.empty in 
+    ({ old_env = oenv; new_env = nenv }:dmap)
+
+
+(** val print_dmap_typ : dmap -> unit *)
+let print_dmap_typ (doub_map: dmap) =
   let f key typ =
     print_string ("key: "^key^", typ: "^typ_to_string typ^"\n")
   in
