@@ -353,13 +353,27 @@ and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct
       in 
       (* if void function then add empty ret *)
       let end_code = match typ with 
-        | Tfct(Tvoid,_) -> useless_end_code
-        | _ -> nop
+        | Tfct(ty,_) when Typer.equ_type ty Tvoid -> 
+          (
+            comment "useless ret -> start" ++
+            useless_end_code ++
+            comment "useless ret -> end"
+          )
+        | _ -> 
+          begin
+            print_string (Ast.typ_to_string typ);
+            nop
+          end
       in 
         (* if main function then add empty ret *) 
         let end_main = 
           if String.equal tident.ident "main" 
-            then useless_end_code
+            then 
+              (
+              comment "useless ret -> start" ++
+              useless_end_code ++
+              comment "useless ret -> end"
+              )
           else nop
       in
         let code = 

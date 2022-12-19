@@ -402,7 +402,7 @@ and compute_type_dfct env fct is_global fpcur offset_env =
                 (* print_dmap_typ new_env; *)
                 let (tdesci,_,fpnew,_) = (compute_type_block new_env dinstr_list typ true fpcur fct_offset_env) (* t0 is now the fun return typ *)
                 in match tdesci with 
-                  | TIblock t_block -> TDfct(typ, {ident = ident; offset = fpnew}, new_plist, t_block), new_env_without_params, fpcur, offset_env
+                  | TIblock t_block -> TDfct(fun_typ, {ident = ident; offset = fpnew}, new_plist, t_block), new_env_without_params, fpcur, offset_env
                   | _ -> assert false (* should not end up here *)
 
           
