@@ -76,7 +76,7 @@ and compile_unop_uamp te =
   | Tptr _ -> nop (* do nothing, address already in rax *)
   | _ -> begin
           match te.tdesc with 
-          | TEvar id -> movq (ind ~ofs:id.offset rbp) !%rax
+          | TEvar id -> leaq (ind ~ofs:id.offset rbp) rax
           | _ -> assert false
         end
 
@@ -166,11 +166,21 @@ and compile_binop_andor te1 te2 op=
 (** Compile an assignation 
     val compile_assign : texpression -> texpression -> text *)
 and compile_assign te1 te2 =
+  (* move value inside correct address *)
+  let move_value = 
+    match te1.tdesc with 
+    | TEvar ti -> movq !%rbx (ind ~ofs:ti.offset rbp) (* te1 is a variable *)
+    | TEunop (Ustar, te1_prim) -> (* te1 is a derefenced pointer *)
+        (compile_expr te1_prim ++ (* te1_prim is an address *)
+        popq rax ++
+        movq !%rbx (ind rax))
+    | _ -> (assert false) (* can't assign to something else *)
+  in
   compile_expr te1 ++
   compile_expr te2 ++
   popq rbx ++ (* get assigned value *)
   popq rax ++ (* get address *)
-  movq !%rbx (ind ~index:rax rbp) ++ (* move value inside correct address *)
+  move_value ++
   pushq (imm 0x1) (* the expression value is true *)
 
 
@@ -329,25 +339,35 @@ and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct
       comment "callee -> allocate activation table" ++
       pushn (-tident.offset)
     in 
+    let useless_end_code = 
+      (
+        comment "callee -> put result in rax (0x0 cause no return)" ++
+        movq (imm 0x0) !%rax ++ 
+        comment "callee -> unstack activation table" ++
+        leave ++
+        comment "callee -> end" ++
+        ret
+      )
+    in
     let gbl_c, cur_c = compile_block global_code nop tblock
       in 
-      (* if void function then add ret *)
+      (* if void function then add empty ret *)
       let end_code = match typ with 
-        | Tfct(Tvoid,_) -> 
-          (
-            comment "callee -> put result in rax (0x0 cause no return)" ++
-            movq (imm 0x0) !%rax ++ 
-            comment "callee -> unstack activation table" ++
-            leave ++
-            comment "callee -> end" ++
-            ret
-          )
+        | Tfct(Tvoid,_) -> useless_end_code
         | _ -> nop
+      in 
+        (* if main function then add empty ret *) 
+        let end_main = 
+          if String.equal tident.ident "main" 
+            then useless_end_code
+          else nop
       in
         let code = 
           beg_code ++ 
           cur_c ++
-          end_code
+          (* comment "cur_code -> end" ++ *)
+          end_code ++
+          end_main
         in gbl_c, cur_code ++ code
 
 
@@ -373,9 +393,7 @@ let compile_program (p:Ast_typed.tfileInclude) ofile =
   let p = 
     { text = 
         global_code ++
-        cur_code ++
-        movq (imm 0) !%rax ++ (* exit *)
-        ret;
+        cur_code;
         data = nop
     }
   in

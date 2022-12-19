@@ -308,14 +308,16 @@ and compute_type_block env di_list t0 from_dfct fpcur offset_env =
   (* val compute_type_block_instr : dinstr list -> dmap -> tdinstr list -> int -> tdesci * dmap * int * dmap_offset *)
   let rec compute_type_block_instr di_list new_env tdi_list fptmp offset_tmp =
     match di_list with 
-    | [] -> TIblock(TBlock(tdi_list)), env, fpcur, offset_env (* restore the previous env *)
+    | [] -> TIblock(TBlock(tdi_list)), env, fptmp, offset_env (* restore the previous env *)
     | cur_di::cdr ->
       let (cur_tdi, new_env, fptmp, offset_tmp) = compute_type_dinstr new_env cur_di t0 fptmp offset_tmp in
         (compute_type_block_instr cdr new_env (tdi_list@[cur_tdi]) fptmp offset_tmp) (* update the block dmap *)
   in 
     (* if new block from decl fun then do not create a new env *)
     if from_dfct then (compute_type_block_instr di_list env [] fpcur offset_env)
-      else (compute_type_block_instr di_list (new_block_dmap_typ env) [] (-8) (new_block_dmap offset_env)) (* first local var at -8 *)
+      else 
+        let (cur_tdi, _, _, _) = (compute_type_block_instr di_list (new_block_dmap_typ env) [] 0 (new_block_dmap offset_env)) (* first local var at -8 *)
+          in (cur_tdi, env, fpcur, offset_env) 
     
 
 (** val compute_type_dinstr : dmap -> dinstr -> typ -> int -> dmap_offset -> tdinstr * dmap * int * dmap_offset *)
@@ -398,9 +400,9 @@ and compute_type_dfct env fct is_global fpcur offset_env =
                 let new_env_without_params = try (add_new_dmap_typ ident fun_typ env) with _ -> (handle_error 23 locdi (Some(ident)))
                 in
                 (* print_dmap_typ new_env; *)
-                let (tdesci,_,_,_) = (compute_type_block new_env dinstr_list typ true new_fp fct_offset_env) (* t0 is now the fun return typ *)
+                let (tdesci,_,fpnew,_) = (compute_type_block new_env dinstr_list typ true fpcur fct_offset_env) (* t0 is now the fun return typ *)
                 in match tdesci with 
-                  | TIblock t_block -> TDfct(typ, {ident = ident; offset = fpcur}, new_plist, t_block), new_env_without_params, fpcur, offset_env
+                  | TIblock t_block -> TDfct(typ, {ident = ident; offset = fpnew}, new_plist, t_block), new_env_without_params, fpcur, offset_env
                   | _ -> assert false (* should not end up here *)
 
           
