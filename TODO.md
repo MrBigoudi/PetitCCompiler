@@ -29,3 +29,6 @@
 # Generation de code
 
 - [ ] complete all failwiths
+- [ ] remove duplicate functions for dmap in ast_typed
+- [ ] modify mul and div for pointers ?
+- [ ] make the code cleaner for incr and decr
