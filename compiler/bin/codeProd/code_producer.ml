@@ -45,10 +45,10 @@ and compile_unop op te =
     | Unot    -> compile_unop_unot typ
     | Ustar   -> compile_unop_ustar typ
     | Uamp    -> compile_unop_uamp te
-    | Uincr_l -> compile_unop_uincr typ
-    | Udecr_l -> compile_unop_udecr typ
-    | Uincr_r -> compile_unop_uincr typ (* diff with Uincr_l TODO ? *)
-    | Udecr_r -> compile_unop_udecr typ (* diff with Uincr_l TODO ? *)
+    | Uincr_l -> compile_unop_uincr te false (* false for left *)
+    | Udecr_l -> compile_unop_udecr te false
+    | Uincr_r -> compile_unop_uincr te true (* true for right *)
+    | Udecr_r -> compile_unop_udecr te true
     | Uplus   -> compile_unop_uplus typ
     | Uminus  -> compile_unop_uminus typ
   ) ++
@@ -81,22 +81,77 @@ and compile_unop_uamp te =
         end
 
 (** Compile an incrementation expression
-    val compile_unop_uincr : typ -> text *)
-and compile_unop_uincr typ =
-  match typ with 
-  | Tint -> incq (!%rax) (* if int then incr *)
-  | Tbool -> movq (imm 0x1) !%rax (* if bool then true *)
-  | Tptr _ -> addq (imm 0x8) !%rax (* if pointer then add 0x8 = length of words to curr address *)
-  | _ -> assert false
+    val compile_unop_uincr : texpression -> bool -> text *)
+and compile_unop_uincr te is_right =
+  let assign = 
+    match te.tdesc with
+    | TEvar id -> 
+      (
+        comment "incr -> assign TEvar" ++
+        movq !%rax (ind ~ofs:id.offset rbp)
+      )
+    | TEunop (Ustar,te_prim) -> 
+      (
+        comment "incr -> assign TEunop (Ustar, _)" ++
+        compile_expr te_prim ++ (* te_prim is an address *)
+        popq rbx ++
+        movq (ind rbx) !%rcx ++ (* save value before assignment *)
+        movq !%rax (ind rbx)
+      )
+    | _ -> (assert false) (* can't assign to something else *)
+  in
+  let typ = te.typ in
+  let new_val = 
+    match typ with 
+    | Tint -> incq (!%rax) (* if int then incr *)
+    | Tbool -> movq (imm 0x1) !%rax (* if bool then true *)
+    | Tptr _ -> 
+      (
+        movq !%rax !%rcx ++ (* save value before assignment *)
+        leaq (ind ~ofs:0x8 rax) rax (* if pointer then add 0x8 = length of words to curr address *)
+      )
+    | _ -> assert false
+  in
+  let expr_value =
+    if is_right 
+      then movq !%rcx !%rax (* putting old value in rax if it's a right incr *)
+      else nop (* putting new value in rax if it's a left incr *)
+  in
+  (
+    movq !%rax !%rcx ++ (* save value before assignment *)
+    comment "incr -> new val" ++
+    new_val ++
+    comment "incr -> assign" ++
+    assign ++
+    comment "incr -> is right incr" ++
+    expr_value ++
+    comment "incr -> done"
+  )
 
 (** Compile a derementation expression
-    val compile_unop_udecr : typ -> text *)
-and compile_unop_udecr typ =
+    val compile_unop_udecr : texpression -> bool -> text *)
+and compile_unop_udecr te is_left =
+  let assign = 
+    match te.tdesc with
+    | TEvar id -> movq !%rax (ind ~ofs:id.offset rbp)
+    | TEunop (Ustar,te_prim) -> 
+      (compile_expr te_prim ++ (* te_prim is an address *)
+      popq rbx ++
+      movq !%rax (ind rbx))
+    | _ -> (assert false) (* can't assign to something else *)
+  in
+  let typ = te.typ in
+  let new_val = 
     match typ with 
-    | Tint -> decq (!%rax)
-    | Tbool -> xorq (imm 0x1) !%rax
-    | Tptr _ -> subq (imm 0x8) !%rax
+    | Tint -> decq (!%rax) (* if int then decr *)
+    | Tbool -> xorq (imm 0x1) !%rax (* if bool then xor *)
+    | Tptr _ -> subq (imm 0x8) !%rax (* if pointer then sub 0x8 = length of words to curr address *)
     | _ -> assert false
+  in
+  (
+    new_val ++
+    assign
+  )
 
 (** Compile a unary plus
     val compile_unop_uplus : typ -> text *)
@@ -125,7 +180,7 @@ and compile_binop op te1 te2 =
   in
   (
   match op with 
-    | Arith(Badd) -> beg ++ addq !%rbx !%rax
+    | Arith(Badd) -> beg ++ (compile_binop_add te1 te2)
     | Arith(Bsub) -> beg ++ subq !%rbx !%rax
     | Arith(Bmul) -> beg ++ imulq !%rbx !%rax
     | Arith(Bdiv) -> beg ++ cqto ++ idivq !%rbx
@@ -139,6 +194,37 @@ and compile_binop op te1 te2 =
     | AndOr op    -> compile_binop_andor te1 te2 op
   ) ++
   pushq !%rax
+
+(** Compile an add operation
+    val compile_binop_add : texpression -> texpression -> text *)
+and compile_binop_add te1 te2 =
+  match te1.typ with
+  | Tptr _ -> 
+    begin
+      match te2.typ with
+      | Tptr _ -> assert false (* cannot add two pointers *)
+      | _ -> 
+        (
+          (* get new address *)
+          comment "add -> ptr start" ++
+          imulq (imm 0x8) !%rbx ++
+          leaq (ind ~index:rbx rax) rax ++
+          comment "add -> ptr done"
+        )
+      end
+  | _ ->
+    begin
+      match te2.typ with
+      | Tptr _ -> 
+        (
+          (* get new address *)
+          comment "add -> ptr start" ++
+          imulq (imm 0x8) !%rax ++
+          leaq (ind ~index:rax rbx) rax ++
+          comment "add -> ptr done"
+        )
+      | _ -> addq !%rbx !%rax
+      end
 
 (** Compile an and/or operation
     val compile_binop_and : texpression -> texpression -> andor_binop -> text *)
@@ -169,19 +255,31 @@ and compile_assign te1 te2 =
   (* move value inside correct address *)
   let move_value = 
     match te1.tdesc with 
-    | TEvar ti -> movq !%rbx (ind ~ofs:ti.offset rbp) (* te1 is a variable *)
+    | TEvar ti -> 
+      (
+        compile_expr te1 ++
+        popq rax ++ (* get return address *)
+        popq rbx ++ (* get assigned value *)
+        movq !%rbx (ind ~ofs:ti.offset rbp) (* te1 is a variable *)
+      )
     | TEunop (Ustar, te1_prim) -> (* te1 is a derefenced pointer *)
-        (compile_expr te1_prim ++ (* te1_prim is an address *)
-        popq rax ++
-        movq !%rbx (ind rax))
+        (
+          comment "assign -> dereferenced pointer start" ++
+          compile_expr te1_prim ++ (* te1_prim is an address *)
+          popq rax ++ (* get return address *)
+          popq rbx ++ (* get assigned value *)
+          movq !%rbx (ind rax) ++
+          comment "assign -> dereferenced pointer end"
+        )
     | _ -> (assert false) (* can't assign to something else *)
   in
-  compile_expr te1 ++
+  comment "assign -> start" ++
+  comment "assign -> compile expr 2 start" ++
   compile_expr te2 ++
-  popq rbx ++ (* get assigned value *)
-  popq rax ++ (* get address *)
+  comment "assign -> compile expr 1 start" ++
   move_value ++
-  pushq (imm 0x1) (* the expression value is true *)
+  pushq (imm 0x1) ++ (* the expression value is true *)
+  comment "assign -> end"
 
 
 (** Compile a call to a standard function
