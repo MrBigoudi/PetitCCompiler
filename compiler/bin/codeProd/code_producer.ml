@@ -273,27 +273,53 @@ and compile_binop_add te1 te2 =
         | _ -> addq !%rbx !%rax
         end
 
-(** Compile an and/or operation
-    val compile_binop_and : texpression -> texpression -> andor_binop -> text *)
-and compile_binop_andor te1 te2 op=
-  let imm1, imm2 = match op with 
-    | Band -> 0x0, 0x1
-    | Bor  -> 0x1, 0x0
-  in
-  compile_expr te1++
+
+(** Compile an or operation 
+    val compile_andor_or : texpression -> texpression -> text *)
+and compile_andor_or te1 te2 =
+  comment "binop -> or start" ++
+  (* test first expression; if not false then true, else check second expression *)
+  compile_expr te1 ++
   popq rax ++
-  (* test first expression then test second if one wasn't enough *)
-  cmpq (imm imm1) !%rax ++
-  je "1f" ++
+  cmpq (imm 0x0) !%rax ++
+  jne "1f" ++ (* go to label 1 forward if not false *)
   compile_expr te2 ++
   popq rax ++
-  cmpq (imm imm1) !%rax ++
-  je "1f" ++
-  movq (imm imm2) !%rax ++
+  cmpq (imm 0x0) !%rax ++
+  jne "1f" ++ (* go to label 1 forward if not false *)
+  movq (imm 0x0) !%rax ++ (* if te1 and te2 are false then false *)
   jmp "2f" ++
   label "1" ++
-  movq (imm imm1) !%rax ++
-  label "2"
+  movq (imm 0x1) !%rax ++ (* if te1 or te1 is true then true *)
+  label "2" ++
+  comment "binop -> or end"
+
+(** Compile an and operation 
+    val compile_andor_and : texpression -> texpression -> text *)
+and compile_andor_and te1 te2 =
+  comment "binop -> and start" ++
+  (* test first expression; if false then false, else check second expression *)
+  compile_expr te1 ++
+  popq rax ++
+  cmpq (imm 0x0) !%rax ++
+  je "1f" ++ (* go to label 1 forward if false *)
+  compile_expr te2 ++
+  popq rax ++
+  cmpq (imm 0x0) !%rax ++
+  je "1f" ++ (* go to label 1 forward if false *)
+  movq (imm 0x1) !%rax ++ (* if te1 and te2 are not false then true *)
+  jmp "2f" ++
+  label "1" ++
+  movq (imm 0x0) !%rax ++ (* if te1 or te1 is false then false *)
+  label "2" ++
+  comment "binop -> and end"
+    
+(** Compile an and/or operation
+    val compile_binop_and : texpression -> texpression -> andor_binop -> text *)
+and compile_binop_andor te1 te2 op =
+  match op with 
+  | Band -> (compile_andor_and te1 te2)
+  | Bor  -> (compile_andor_or te1 te2)
 
 
 (** Compile an assignation 
