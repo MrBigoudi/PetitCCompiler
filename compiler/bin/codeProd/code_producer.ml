@@ -205,12 +205,18 @@ and compile_call_std ident te_list =
 (** Compile a function call
     val compile_call : tident -> texpression list -> text *)
 and compile_call f l =
+  let rec put_args_in_stack te_list acc =
+    match te_list with 
+    | [] -> acc
+    | te::cdr -> let acc = (compile_expr te) ++ acc
+                  in (put_args_in_stack cdr acc)
+  in
   if (String.equal f.ident "putchar") || (String.equal f.ident "malloc") 
     then (compile_call_std f.ident l) 
   else
   (* put all arguments in the stack *)
   comment "caller -> put args in stack" ++
-  List.fold_left (fun code e -> code ++ compile_expr e) nop l ++
+  (put_args_in_stack l nop) ++
   (* call the function *)
   comment "caller -> call func" ++
   call f.ident ++
@@ -361,7 +367,7 @@ and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct
           )
         | _ -> 
           begin
-            print_string (Ast.typ_to_string typ);
+            (* print_string (Ast.typ_to_string typ); *)
             nop
           end
       in 
