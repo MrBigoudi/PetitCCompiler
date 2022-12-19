@@ -323,9 +323,11 @@ and compile_assign te1 te2 =
   comment "assign -> start" ++
   comment "assign -> compile expr 2 start" ++
   compile_expr te2 ++
+  popq rdx ++
+  pushq !%rdx ++
   comment "assign -> compile expr 1 start" ++
   move_value ++
-  pushq (imm 0x1) ++ (* the expression value is true *)
+  pushq !%rdx ++ (* the expression value is the one of the assigned value *)
   comment "assign -> end"
 
 
