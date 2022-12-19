@@ -130,14 +130,22 @@ and compile_unop_uincr te is_right =
 
 (** Compile a derementation expression
     val compile_unop_udecr : texpression -> bool -> text *)
-and compile_unop_udecr te is_left =
+and compile_unop_udecr te is_right =
   let assign = 
     match te.tdesc with
-    | TEvar id -> movq !%rax (ind ~ofs:id.offset rbp)
+    | TEvar id -> 
+      (
+        comment "decr -> assign TEvar" ++
+        movq !%rax (ind ~ofs:id.offset rbp)
+      )
     | TEunop (Ustar,te_prim) -> 
-      (compile_expr te_prim ++ (* te_prim is an address *)
-      popq rbx ++
-      movq !%rax (ind rbx))
+      (
+        comment "decr -> assign TEunop (Ustar, _)" ++
+        compile_expr te_prim ++ (* te_prim is an address *)
+        popq rbx ++
+        movq (ind rbx) !%rcx ++ (* save value before assignment *)
+        movq !%rax (ind rbx)
+      )
     | _ -> (assert false) (* can't assign to something else *)
   in
   let typ = te.typ in
@@ -145,12 +153,27 @@ and compile_unop_udecr te is_left =
     match typ with 
     | Tint -> decq (!%rax) (* if int then decr *)
     | Tbool -> xorq (imm 0x1) !%rax (* if bool then xor *)
-    | Tptr _ -> subq (imm 0x8) !%rax (* if pointer then sub 0x8 = length of words to curr address *)
+    | Tptr _ -> 
+      (
+        movq !%rax !%rcx ++ (* save value before assignment *)
+        leaq (ind ~ofs:(-0x8) rax) rax (* if pointer then sub 0x8 = length of words to curr address *)
+      )
     | _ -> assert false
   in
+  let expr_value =
+    if is_right 
+      then movq !%rcx !%rax (* putting old value in rax if it's a right incr *)
+      else nop (* putting new value in rax if it's a left incr *)
+  in
   (
+    movq !%rax !%rcx ++ (* save value before assignment *)
+    comment "decr -> new val" ++
     new_val ++
-    assign
+    comment "decr -> assign" ++
+    assign ++
+    comment "decr -> is right incr" ++
+    expr_value ++
+    comment "decr -> done"
   )
 
 (** Compile a unary plus
@@ -181,7 +204,7 @@ and compile_binop op te1 te2 =
   (
   match op with 
     | Arith(Badd) -> beg ++ (compile_binop_add te1 te2)
-    | Arith(Bsub) -> beg ++ subq !%rbx !%rax
+    | Arith(Bsub) -> beg ++ (compile_binop_sub te1 te2)
     | Arith(Bmul) -> beg ++ imulq !%rbx !%rax
     | Arith(Bdiv) -> beg ++ cqto ++ idivq !%rbx
     | Arith(Bmod) -> failwith "TODO modulo"
@@ -225,6 +248,30 @@ and compile_binop_add te1 te2 =
         )
       | _ -> addq !%rbx !%rax
       end
+
+(** Compile a sub operation
+    val compile_binop_sub : texpression -> texpression -> text *)
+    and compile_binop_sub te1 te2 =
+    match te1.typ with
+    | Tptr _ -> 
+      begin
+        match te2.typ with
+        | Tptr _ -> subq !%rbx !%rax (* sub of two pointers *)
+        | _ -> 
+          (
+            (* get new address *)
+            comment "sub -> ptr start" ++
+            imulq (imm (-0x8)) !%rbx ++
+            leaq (ind ~index:rbx rax) rax ++
+            comment "sub -> ptr done"
+          )
+        end
+    | _ ->
+      begin
+        match te2.typ with
+        | Tptr _ -> assert false (* cannot substract a pointer to a non pointer *)
+        | _ -> addq !%rbx !%rax
+        end
 
 (** Compile an and/or operation
     val compile_binop_and : texpression -> texpression -> andor_binop -> text *)
