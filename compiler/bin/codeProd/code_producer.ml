@@ -427,7 +427,7 @@ and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr)
   | TIempt                        -> global_code, cur_code
   | TIexpr exp                    -> global_code, cur_code ++ compile_expr exp ++ popq rax
   | TIif (exp, i1, i2)            -> compile_instr_if global_code cur_code exp i1 i2
-  | TIwhile (exp, ins)            -> failwith "TODO"
+  | TIwhile (exp, ins)            -> compile_instr_while global_code cur_code exp ins
   | TIfor (var, exp, exp_list, i) -> failwith "TODO"
   | TIblock block                 -> compile_block global_code cur_code block
   | TIret exp                     -> compile_instr_ret global_code cur_code exp
@@ -465,6 +465,34 @@ and compile_instr_if global_code cur_code exp i1 i2 =
       label "3" (* begin next instruction *)
     )
   in global_code ++ g1 ++ g2, cur_code ++ code
+
+
+(** Compile a while instruction
+    val compile_instr_while : text -> text -> texpression -> tinstr -> text -> text *)
+and compile_instr_while global_code cur_code exp ins =
+  let g1, c1 =
+    compile_instr nop nop ins
+  in
+  let code = 
+    (
+      comment "while -> start" ++
+      label "1" ++
+      comment "while -> compile expr start" ++
+      compile_expr exp ++
+      comment "while -> compile expr end" ++
+      popq rax ++
+      comment "while -> condition check start" ++
+      cmpq (imm 0x0) !%rax ++ (* return 0x0 if exp is false *)
+      je "2f" ++ (* leave while loop *) 
+      comment "while -> condition check end" ++
+      comment "while -> instr start" ++
+      c1 ++
+      comment "while -> instr end" ++
+      jmp "1b" ++ (* check the expression again *)
+      label "2" ++ (* begin next instruction *)
+      comment "while -> end"
+    )
+  in global_code ++ g1, cur_code ++ code
 
 
 (** Compile a return instruction
