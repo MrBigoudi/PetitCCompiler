@@ -214,7 +214,7 @@ and compile_binop op te1 te2 =
     | Arith(Bsub) -> beg ++ (compile_binop_sub te1 te2)
     | Arith(Bmul) -> beg ++ imulq !%rbx !%rax
     | Arith(Bdiv) -> beg ++ cqto ++ idivq !%rbx
-    | Arith(Bmod) -> failwith "TODO modulo"
+    | Arith(Bmod) -> beg ++ compile_binop_mod()
     | Logic(Beq)  -> beg ++ cmpq !%rbx !%rax ++ sete !%al ++ movsbq !%al rax
     | Logic(Bneq) -> beg ++ cmpq !%rbx !%rax ++ setne !%al ++ movsbq !%al rax
     | Logic(Blt)  -> beg ++ cmpq !%rbx !%rax ++ setl !%al ++ movsbq !%al rax
@@ -224,6 +224,27 @@ and compile_binop op te1 te2 =
     | AndOr op    -> compile_binop_andor te1 te2 op
   ) ++
   pushq !%rax
+
+(** Compile a modulo operation
+    val compile_binop_mod : unit -> text *)
+and compile_binop_mod() =
+  (
+    comment "mod -> start" ++
+    comment "mod -> save the numerator in rcx" ++
+    movq !%rax !%rcx ++
+    comment "mod -> get quotient in rax" ++
+    cqto ++
+    idivq !%rbx ++
+    comment "mod -> multiply quotient and denominator" ++
+    imulq !%rax !%rbx ++
+    comment "mod -> substract numerator and product" ++
+    subq !%rbx !%rcx ++
+    comment "mod -> put result in rax" ++
+    movq !%rcx !%rax ++
+    comment "mod -> end"
+  )
+
+
 
 (** Compile an add operation
     val compile_binop_add : texpression -> texpression -> text *)
@@ -447,7 +468,7 @@ and compile_sizeof typ =
 (** Compile an instruction 
     val compile_instr : text -> text -> tinstr -> int -> text * text * int *)
 and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr) (last_loop_label: int) =
-  let tdesci, env = instr.tdesci, instr.env in
+  let tdesci, _ = instr.tdesci, instr.env in
   match tdesci with 
   | TIempt                        -> global_code, cur_code, last_loop_label
   | TIexpr exp                    -> global_code, cur_code ++ compile_expr exp ++ popq rax, last_loop_label
@@ -533,7 +554,7 @@ and compile_instr_while global_code cur_code exp ins =
     in 
       begin
         label_counter := !label_counter - 2; (* restore old value for label counter *)
-        global_code ++ g1, cur_code ++ code, beg_label (**)
+        global_code ++ g1, cur_code ++ code, beg_label
       end
   end
 
@@ -599,7 +620,7 @@ and compile_instr_for global_code cur_code var exp exp_list i =
   let beg_label = !label_counter
   in
   begin
-    label_counter := !label_counter + 2;
+    label_counter := !label_counter + 3;
     let rec compile_expression_list exp_list acc =
       match exp_list with
       | [] -> 
@@ -658,17 +679,18 @@ and compile_instr_for global_code cur_code var exp exp_list i =
     let code =
       (
         code_decl_var ++
-        label (label_to_string beg_label None) ++ (* 1b for beginning of for loop *)
+        label (label_to_string (beg_label+2) None) ++ (* 1b for beginning of for loop *)
         code_comparison ++
         code_instr ++
+        label (label_to_string beg_label None) ++ (* 1b for beginning of for loop *)
         compile_expression_list exp_list nop ++
-        jmp (label_to_string beg_label (Some("b"))) ++ (* go back to beginning of the loop *)
+        jmp (label_to_string (beg_label+2) (Some("b"))) ++ (* go back to beginning of the loop *)
         label (label_to_string (beg_label+1) None) ++ (* 2f for end of for loop *)
         comment "for -> end"
       ) 
     in
       begin
-        label_counter := !label_counter - 2; (* restore old value for label counter *)
+        label_counter := !label_counter - 3; (* restore old value for label counter *)
         global_code ++ global_code_instr, code, beg_label
       end
   end
@@ -677,7 +699,7 @@ and compile_instr_for global_code cur_code var exp exp_list i =
 (** Compile a variable declaration 
     val compile_decl_var : text -> text -> tdvar -> int -> text * text * int *)
 and compile_decl_var (global_code: text) (cur_code: text) (dvar: Ast_typed.tdvar) last_loop_label =
-  match dvar with TDvar(typ, tident, texp) ->
+  match dvar with TDvar(_, tident, texp) ->
     let value =
       match texp with 
       | Some(exp) -> compile_expr exp
@@ -717,7 +739,7 @@ and compile_block (global_code: text) (cur_code: text) (blck: Ast_typed.tblock) 
 (** Compile a function declaration
     val compile_decl_fun : text -> text -> tdfct -> int -> text * text * int *)
 and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct) last_loop_label =
-  match dfct with TDfct(typ, tident, tparam_l, tblock) ->
+  match dfct with TDfct(typ, tident, _, tblock) ->
     let beg_code =
       label tident.ident ++
       (* save rbp *)

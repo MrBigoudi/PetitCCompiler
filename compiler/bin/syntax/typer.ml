@@ -288,7 +288,7 @@ and compute_type_for env dvar e elist i t0 locdi fpcur offset_env =
       | None -> (* for(d;;l) -> for(d;true;l) *)
         let te = {tdesc = TEconst(True); typ = Tbool} in 
           let te_list = (createTExprList elist [] new_env new_offset_env) in
-            let s, new_fp, new_offset_env = (type_instr new_env i t0 locdi new_fp new_offset_env) in
+            let s, new_fp, _ = (type_instr new_env i t0 locdi new_fp new_offset_env) in
               in_loop := false; 
               TIfor(tdvar, Some(te), te_list, s), env, new_fp, offset_env (* return previous env *)
       | Some e ->
@@ -297,7 +297,7 @@ and compute_type_for env dvar e elist i t0 locdi fpcur offset_env =
           then (handle_error 21 locdi None)
           else
             let te_list = (createTExprList elist [] new_env new_offset_env) in
-            let s, new_fp, new_offset_env = (type_instr new_env i t0 locdi new_fp new_offset_env) in
+            let s, new_fp, _ = (type_instr new_env i t0 locdi new_fp new_offset_env) in
               in_loop := false; 
               TIfor(tdvar, Some(te), te_list, s), env, new_fp, offset_env (* return previous env *)
     end
@@ -393,7 +393,7 @@ and compute_type_dfct env fct is_global fpcur offset_env =
           (* adding fun prototype to new env and adding all parameters to new env *)
           in let fun_typ = Tfct(typ,p_types) in
             let new_env = try (add_new_dmap_typ ident fun_typ new_env) with _ -> (handle_error 23 locdi (Some(ident)))
-            in let new_plist, new_fp, fct_offset_env = param_list_to_tparam_list p_list [] 16 (new_block_dmap offset_env) 
+            in let new_plist, _, fct_offset_env = param_list_to_tparam_list p_list [] 16 (new_block_dmap offset_env) 
             (* checking return type of the function *)
               in
                 (* new environment with only the function declaration *)
