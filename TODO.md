@@ -32,4 +32,4 @@
 - [ ] remove duplicate functions for dmap in ast_typed
 - [ ] modify mul and div for pointers ?
 - [ ] make the code by removing duplicate things in code_producer.ml + add comments and better doc
-- [ ] add global counter for labels to avoid probles with nested instructions
+- [x] add global counter for labels to avoid probles with nested instructions

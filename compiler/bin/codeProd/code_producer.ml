@@ -445,33 +445,33 @@ and compile_sizeof typ =
 
 
 (** Compile an instruction 
-    val compile_instr : text -> text -> tinstr -> text * text *)
-and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr) =
+    val compile_instr : text -> text -> tinstr -> int -> text * text * int *)
+and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr) (last_loop_label: int) =
   let tdesci, env = instr.tdesci, instr.env in
   match tdesci with 
-  | TIempt                        -> global_code, cur_code
-  | TIexpr exp                    -> global_code, cur_code ++ compile_expr exp ++ popq rax
-  | TIif (exp, i1, i2)            -> compile_instr_if global_code cur_code exp i1 i2
+  | TIempt                        -> global_code, cur_code, last_loop_label
+  | TIexpr exp                    -> global_code, cur_code ++ compile_expr exp ++ popq rax, last_loop_label
+  | TIif (exp, i1, i2)            -> compile_instr_if global_code cur_code exp i1 i2 last_loop_label
   | TIwhile (exp, ins)            -> compile_instr_while global_code cur_code exp ins
   | TIfor (var, exp, exp_list, i) -> compile_instr_for global_code cur_code var exp exp_list i
-  | TIblock block                 -> compile_block global_code cur_code block
-  | TIret exp                     -> compile_instr_ret global_code cur_code exp
-  | TIbreak                       -> compile_instr_break global_code cur_code
-  | TIcontinue                    -> compile_instr_continue global_code cur_code
+  | TIblock block                 -> compile_block global_code cur_code block last_loop_label
+  | TIret exp                     -> compile_instr_ret global_code cur_code exp last_loop_label
+  | TIbreak                       -> compile_instr_break global_code cur_code last_loop_label
+  | TIcontinue                    -> compile_instr_continue global_code cur_code last_loop_label
 
 
 (** Compile an if instruction
-    val compile_intr_if : text -> text -> texpression -> tinstr -> tinstr -> text * text *)
-and compile_instr_if global_code cur_code exp i1 i2 =
+    val compile_intr_if : text -> text -> texpression -> tinstr -> tinstr -> int -> text * text * int *)
+and compile_instr_if global_code cur_code exp i1 i2 last_loop_label =
   let beg_label = !label_counter
   in
   begin
     label_counter := !label_counter + 3;
-    let g1, c1 =
-      compile_instr nop nop i1
+    let g1, c1, _ =
+      compile_instr nop nop i1 last_loop_label
     in
-    let g2, c2 =
-      compile_instr nop nop i2
+    let g2, c2, _ =
+      compile_instr nop nop i2 last_loop_label
     in
     let code =
       (
@@ -495,21 +495,21 @@ and compile_instr_if global_code cur_code exp i1 i2 =
       )
     in 
       begin
-        label_counter := !label_counter - 3; (* restor old value for label counter *)
-        global_code ++ g1 ++ g2, cur_code ++ code
+        label_counter := !label_counter - 3; (* restore old value for label counter *)
+        global_code ++ g1 ++ g2, cur_code ++ code, last_loop_label
       end
   end
 
 
 (** Compile a while instruction
-    val compile_instr_while : text -> text -> texpression -> tinstr -> text -> text *)
+    val compile_instr_while : text -> text -> texpression -> tinstr -> text -> text * int *)
 and compile_instr_while global_code cur_code exp ins =
   let beg_label = !label_counter
   in
   begin
     label_counter := !label_counter + 2;
-    let g1, c1 =
-      compile_instr nop nop ins
+    let g1, c1, _ =
+      compile_instr nop nop ins beg_label
     in
     let code = 
       (
@@ -532,15 +532,15 @@ and compile_instr_while global_code cur_code exp ins =
       )
     in 
       begin
-        label_counter := !label_counter - 2; (* restor old value for label counter *)
-        global_code ++ g1, cur_code ++ code
+        label_counter := !label_counter - 2; (* restore old value for label counter *)
+        global_code ++ g1, cur_code ++ code, beg_label (**)
       end
   end
 
 
 (** Compile a return instruction
-    val compile_instr_ret : text -> text -> texpression -> text * text *)
-and compile_instr_ret global_code cur_code exp =
+    val compile_instr_ret : text -> text -> texpression -> int -> text * text * int *)
+and compile_instr_ret global_code cur_code exp last_loop_label =
   let code = 
     match exp with
     | Some(exp) ->
@@ -564,23 +564,37 @@ and compile_instr_ret global_code cur_code exp =
         comment "callee -> end" ++
         ret
       )
-  in global_code, cur_code ++ code
+  in global_code, cur_code ++ code, last_loop_label
 
 
 (** Compile a break instruction 
-    compile_instr_break : text -> text -> text * text *)
-and compile_instr_break global_code cur_code =
-  global_code, cur_code ++ jmp (label_to_string (!label_counter-1) (Some("f"))) (* the first label after the loop *)
+    compile_instr_break : text -> text -> int -> text * text * int *)
+and compile_instr_break global_code cur_code last_loop_label =
+  let code =
+    (
+      comment "break -> start" ++
+      jmp (label_to_string (last_loop_label + 1) (Some("f"))) ++ (* the first label after the loop *)
+      comment "break -> end"
+    )
+  in
+  global_code, cur_code ++ code, last_loop_label
 
 
 (** Compile a continue instruction 
-    compile_instr_continue : text -> text -> text * text *)
-and compile_instr_continue global_code cur_code =
-  global_code, cur_code ++ jmp (label_to_string (!label_counter-2) (Some("b"))) (* the first label before the loop *)
-  
+    compile_instr_continue : text -> text -> int -> text * text * int *)
+and compile_instr_continue global_code cur_code last_loop_label =
+  let code =
+    (
+      comment "continue -> start" ++
+      jmp (label_to_string last_loop_label (Some("b"))) ++ (* the first label before the loop *)
+      comment "continue -> end"
+    )
+  in
+  global_code, cur_code ++ code, last_loop_label
+
 
 (** Compile a for instruction
-    compile_instr_for : text -> text -> tdvar option -> texpression option -> texpression list -> tinstr *)
+    compile_instr_for : text -> text -> tdvar option -> texpression option -> texpression list -> tinstr -> text * text * int *)
 and compile_instr_for global_code cur_code var exp exp_list i =
   let beg_label = !label_counter
   in
@@ -607,7 +621,7 @@ and compile_instr_for global_code cur_code var exp exp_list i =
           comment "for -> no function declaration"
         )
       | Some(d) -> 
-        let _, c = compile_decl_var global_code cur_code d 
+        let _, c, _ = compile_decl_var global_code cur_code d beg_label
           in 
         (
           c ++
@@ -639,7 +653,7 @@ and compile_instr_for global_code cur_code var exp exp_list i =
         comment "for -> condition check end"
       )
     in
-    let global_code_instr, code_instr = compile_instr nop nop i 
+    let global_code_instr, code_instr, _ = compile_instr nop nop i beg_label
     in 
     let code =
       (
@@ -654,15 +668,15 @@ and compile_instr_for global_code cur_code var exp exp_list i =
       ) 
     in
       begin
-        label_counter := !label_counter - 2; (* restor old value for label counter *)
-        global_code ++ global_code_instr, code
+        label_counter := !label_counter - 2; (* restore old value for label counter *)
+        global_code ++ global_code_instr, code, beg_label
       end
   end
 
 
 (** Compile a variable declaration 
-    val compile_decl_var : text -> text -> tdvar -> text * text *)
-and compile_decl_var (global_code: text) (cur_code: text) (dvar: Ast_typed.tdvar) =
+    val compile_decl_var : text -> text -> tdvar -> int -> text * text * int *)
+and compile_decl_var (global_code: text) (cur_code: text) (dvar: Ast_typed.tdvar) last_loop_label =
   match dvar with TDvar(typ, tident, texp) ->
     let value =
       match texp with 
@@ -675,34 +689,34 @@ and compile_decl_var (global_code: text) (cur_code: text) (dvar: Ast_typed.tdvar
       popq rax ++
       (* stocke it at the correct position *)
       movq !%rax (ind ~ofs:tident.offset rbp)
-    in global_code, cur_code ++ code
+    in global_code, cur_code ++ code, last_loop_label
 
 
 (** Compile an instruction declaration 
-    val compile_decl_instr : text -> text -> tdinstr -> text * text *)
-and compile_decl_instr (global_code: text) (cur_code: text) (dinstr: Ast_typed.tdinstr) =
+    val compile_decl_instr : text -> text -> tdinstr -> int -> text * text * int *)
+and compile_decl_instr (global_code: text) (cur_code: text) (dinstr: Ast_typed.tdinstr) last_loop_label =
   match dinstr with
-  | TDinstrFct tdfct -> compile_decl_fun global_code cur_code tdfct
-  | TDinstrVar tdvar -> compile_decl_var global_code cur_code tdvar
-  | TDinstr tinstr -> compile_instr global_code cur_code tinstr
+  | TDinstrFct tdfct -> compile_decl_fun global_code cur_code tdfct last_loop_label
+  | TDinstrVar tdvar -> compile_decl_var global_code cur_code tdvar last_loop_label
+  | TDinstr tinstr -> compile_instr global_code cur_code tinstr last_loop_label
 
 
 (** Compile an instruction block 
-    val compile_block : text -> text -> tblock -> text * text *)
-and compile_block (global_code: text) (cur_code: text) (blck: Ast_typed.tblock) =
+    val compile_block : text -> text -> tblock -> int -> text * text * int *)
+and compile_block (global_code: text) (cur_code: text) (blck: Ast_typed.tblock) last_loop_label =
   match blck with TBlock l ->
-    let rec aux tdi_l gbl_c cur_c = 
+    let rec aux tdi_l gbl_c cur_c last_loop_label = 
       match tdi_l with
-      | [] -> gbl_c, cur_c
+      | [] -> gbl_c, cur_c, last_loop_label
       | tdi::cdr ->
-        let gbl_c, cur_c = (compile_decl_instr gbl_c cur_c tdi)
-          in (aux cdr gbl_c cur_c)
-    in (aux l global_code cur_code)
+        let gbl_c, cur_c, last_loop_label = (compile_decl_instr gbl_c cur_c tdi last_loop_label)
+          in (aux cdr gbl_c cur_c last_loop_label)
+    in (aux l global_code cur_code last_loop_label)
 
 
 (** Compile a function declaration
-    val compile_decl_fun : text -> text -> tdfct -> text * text *)
-and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct) =
+    val compile_decl_fun : text -> text -> tdfct -> int -> text * text * int *)
+and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct) last_loop_label =
   match dfct with TDfct(typ, tident, tparam_l, tblock) ->
     let beg_code =
       label tident.ident ++
@@ -724,7 +738,7 @@ and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct
         ret
       )
     in
-    let gbl_c, cur_c = compile_block global_code nop tblock
+    let gbl_c, cur_c, last_loop_label = compile_block global_code nop tblock last_loop_label
       in 
       (* if void function then add empty ret *)
       let end_code = match typ with 
@@ -757,28 +771,28 @@ and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct
           (* comment "cur_code -> end" ++ *)
           end_code ++
           end_main
-        in gbl_c, cur_code ++ code
+        in gbl_c, cur_code ++ code, last_loop_label
 
 
 (** Compile a file include representing a program 
-    val compile_file_include : text -> text -> tfileInclude -> text * text *)
-and compile_file_include (global_code: text) (cur_code: text) (tprog: Ast_typed.tfileInclude) =
+    val compile_file_include : text -> text -> tfileInclude -> int -> text * text * int *)
+and compile_file_include (global_code: text) (cur_code: text) (tprog: Ast_typed.tfileInclude) last_loop_label =
   (* hand made fold left over the tdfct list *)
-  let rec aux_fold_left dfct_list global_code cur_code =
+  let rec aux_fold_left dfct_list global_code cur_code last_loop_label =
     match dfct_list with 
-    | [] -> global_code, cur_code
+    | [] -> global_code, cur_code, last_loop_label
     | dfct::cdr -> 
-      let global_code, cur_code = compile_decl_fun global_code cur_code dfct
-        in (aux_fold_left cdr global_code cur_code)
+      let global_code, cur_code, last_loop_label = compile_decl_fun global_code cur_code dfct last_loop_label
+        in (aux_fold_left cdr global_code cur_code last_loop_label)
   in
   match tprog with 
-    TFileInclude dfct_list -> (aux_fold_left dfct_list global_code cur_code)
+    TFileInclude dfct_list -> (aux_fold_left dfct_list global_code cur_code last_loop_label)
 
 
 (** Compile a typed ast and put the resulting assembler in the output file
     val compile_program : Ast_typed.tfileInclude -> string -> program *)
 let compile_program (p:Ast_typed.tfileInclude) ofile =
-  let global_code, cur_code = (compile_file_include (globl "main") nop p) in
+  let global_code, cur_code, _ = (compile_file_include (globl "main") nop p (!label_counter)) in
   let p = 
     { text = 
         global_code ++
