@@ -248,9 +248,9 @@ and compute_type_if env e i1 i2 t0 locdi fpcur offset_env =
     if (equ_type Tvoid (te.typ)) 
       then (handle_error 20 locdi (Some("if")))
     else 
-      let (ti1, _, _) = (type_instr env i1 t0 locdi fpcur offset_env) in
-      let (ti2, _, _) = (type_instr env i2 t0 locdi fpcur offset_env) in
-        TIif(te, ti1, ti2), env, fpcur, offset_env
+      let (ti1, fp1, _) = (type_instr env i1 t0 locdi fpcur offset_env) in
+      let (ti2, fp2, _) = (type_instr env i2 t0 locdi fpcur offset_env) in
+        TIif(te, ti1, ti2), env, (min fp1 fp2), offset_env
 
 (** val compute_type_while : dmap -> expression -> instr -> typ -> dinstr.loc -> int -> dmap_offset -> tdesci * dmap * int * dmap_offset *)
 and compute_type_while env e i t0 locdi fpcur offset_env =
@@ -259,8 +259,8 @@ and compute_type_while env e i t0 locdi fpcur offset_env =
     if(equ_type Tvoid (te.typ))
       then (handle_error 20 locdi (Some("while")))
     else 
-      let ti, _, _ = (type_instr env i t0 locdi fpcur offset_env) 
-        in (in_loop := false ; TIwhile(te, ti), env, fpcur, offset_env)
+      let ti, new_fp, _ = (type_instr env i t0 locdi fpcur offset_env) 
+        in (in_loop := false ; TIwhile(te, ti), env, new_fp, offset_env)
 
 
 (** val compute_type_for : dmap -> dvar -> instr -> instr -> typ -> dinstr.loc -> int -> dmap_offset -> tdesci * dmap * int * dmap_offset *)
@@ -299,7 +299,7 @@ and compute_type_for env dvar e elist i t0 locdi fpcur offset_env =
             let te_list = (createTExprList elist [] new_env new_offset_env) in
             let s, new_fp, new_offset_env = (type_instr new_env i t0 locdi new_fp new_offset_env) in
               in_loop := false; 
-              TIfor(tdvar, Some(te), te_list, s), env, fpcur, offset_env (* return previous env *)
+              TIfor(tdvar, Some(te), te_list, s), env, new_fp, offset_env (* return previous env *)
     end
 
 
@@ -316,8 +316,8 @@ and compute_type_block env di_list t0 from_dfct fpcur offset_env =
     (* if new block from decl fun then do not create a new env *)
     if from_dfct then (compute_type_block_instr di_list env [] fpcur offset_env)
       else 
-        let (cur_tdi, _, _, _) = (compute_type_block_instr di_list (new_block_dmap_typ env) [] 0 (new_block_dmap offset_env)) (* first local var at -8 *)
-          in (cur_tdi, env, fpcur, offset_env) 
+        let (cur_tdi, _, fpnew, _) = (compute_type_block_instr di_list (new_block_dmap_typ env) [] fpcur (new_block_dmap offset_env)) (* first local var at -8 *)
+          in (cur_tdi, env, fpnew, offset_env) 
     
 
 (** val compute_type_dinstr : dmap -> dinstr -> typ -> int -> dmap_offset -> tdinstr * dmap * int * dmap_offset *)

@@ -251,27 +251,27 @@ and compile_binop_add te1 te2 =
 
 (** Compile a sub operation
     val compile_binop_sub : texpression -> texpression -> text *)
-    and compile_binop_sub te1 te2 =
-    match te1.typ with
-    | Tptr _ -> 
-      begin
-        match te2.typ with
-        | Tptr _ -> subq !%rbx !%rax (* sub of two pointers *)
-        | _ -> 
-          (
-            (* get new address *)
-            comment "sub -> ptr start" ++
-            imulq (imm (-0x8)) !%rbx ++
-            leaq (ind ~index:rbx rax) rax ++
-            comment "sub -> ptr done"
-          )
-        end
-    | _ ->
-      begin
-        match te2.typ with
-        | Tptr _ -> assert false (* cannot substract a pointer to a non pointer *)
-        | _ -> addq !%rbx !%rax
-        end
+and compile_binop_sub te1 te2 =
+  match te1.typ with
+  | Tptr _ -> 
+    begin
+      match te2.typ with
+      | Tptr _ -> subq !%rbx !%rax (* sub of two pointers *)
+      | _ -> 
+        (
+          (* get new address *)
+          comment "sub -> ptr start" ++
+          imulq (imm (-0x8)) !%rbx ++
+          leaq (ind ~index:rbx rax) rax ++
+          comment "sub -> ptr done"
+        )
+      end
+  | _ ->
+    begin
+      match te2.typ with
+      | Tptr _ -> assert false (* cannot substract a pointer to a non pointer *)
+      | _ -> subq !%rbx !%rax
+      end
 
 
 (** Compile an or operation 
@@ -426,13 +426,45 @@ and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr)
   match tdesci with 
   | TIempt                        -> global_code, cur_code
   | TIexpr exp                    -> global_code, cur_code ++ compile_expr exp ++ popq rax
-  | TIif (exp, i1, i2)            -> failwith "TODO"
+  | TIif (exp, i1, i2)            -> compile_instr_if global_code cur_code exp i1 i2
   | TIwhile (exp, ins)            -> failwith "TODO"
   | TIfor (var, exp, exp_list, i) -> failwith "TODO"
   | TIblock block                 -> compile_block global_code cur_code block
   | TIret exp                     -> compile_instr_ret global_code cur_code exp
   | TIbreak                       -> failwith "TODO"
   | TIcontinue                    -> failwith "TODO"
+
+
+(** Compile an if instruction
+    val compile_intr_if : text -> text -> texpression -> tinstr -> tinstr -> text * text *)
+and compile_instr_if global_code cur_code exp i1 i2 =
+  let g1, c1 =
+    compile_instr nop nop i1
+  in
+  let g2, c2 =
+    compile_instr nop nop i2
+  in
+  let code =
+    (
+      comment "if -> compile expr start" ++
+      compile_expr exp ++
+      comment "if -> compile expr end" ++
+      popq rax ++
+      cmpq (imm 0x0) !%rax ++ (* return 0x0 if exp is false *)
+      je "2f" ++ (* jump to else if false *)
+      comment "if -> first instr start" ++
+      label "1" ++ (* if instr *)
+      c1 ++
+      jmp "3f" ++ (* skip else statement *)
+      comment "if -> first instr end" ++
+      comment "if -> second instr start" ++
+      label "2" ++ (* else instr *)
+      c2 ++
+      jmp "3f" ++
+      comment "if -> second instr end" ++
+      label "3" (* begin next instruction *)
+    )
+  in global_code ++ g1 ++ g2, cur_code ++ code
 
 
 (** Compile a return instruction
