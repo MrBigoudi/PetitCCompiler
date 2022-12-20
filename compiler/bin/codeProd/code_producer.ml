@@ -5,6 +5,13 @@ open Format
 let popn n = addq (imm n) !%rsp
 let pushn n = subq (imm n) !%rsp
 
+let label_counter = ref 0
+
+let label_to_string (i:int) (letter:string option) =
+  match letter with
+  | Some(letter) ->  (Int.to_string i)^letter
+  | None -> (Int.to_string i)
+
 
 (** Compile a typed expression
     val compile_expr : Ast_typed.texpression -> text *)
@@ -277,49 +284,67 @@ and compile_binop_sub te1 te2 =
 (** Compile an or operation 
     val compile_andor_or : texpression -> texpression -> text *)
 and compile_andor_or te1 te2 =
-  comment "binop -> or start" ++
-  (* test first expression; if not false then true, else check second expression *)
-  compile_expr te1 ++
-  popq rax ++
-  cmpq (imm 0x0) !%rax ++
-  jne "1f" ++ (* go to label 1 forward if not false *)
-  compile_expr te2 ++
-  popq rax ++
-  cmpq (imm 0x0) !%rax ++
-  jne "1f" ++ (* go to label 1 forward if not false *)
-  movq (imm 0x0) !%rax ++ (* if te1 and te2 are false then false *)
-  jmp "2f" ++
-  label "1" ++
-  movq (imm 0x1) !%rax ++ (* if te1 or te1 is true then true *)
-  label "2" ++
-  comment "binop -> or end"
+  let beg_label = !label_counter in
+  begin
+    label_counter := !label_counter + 2;
+    (
+      comment "binop -> or start" ++
+      (* test first expression; if not false then true, else check second expression *)
+      compile_expr te1 ++
+      popq rax ++
+      cmpq (imm 0x0) !%rax ++
+      jne (label_to_string beg_label (Some("f"))) ++ (* go to label forward if not false *)
+      compile_expr te2 ++
+      popq rax ++
+      cmpq (imm 0x0) !%rax ++
+      jne (label_to_string beg_label (Some("f"))) ++ (* go to label forward if not false *)
+      movq (imm 0x0) !%rax ++ (* if te1 and te2 are false then false *)
+      jmp (label_to_string (beg_label+1) (Some("f"))) ++
+      label (label_to_string beg_label None) ++
+      movq (imm 0x1) !%rax ++ (* if te1 or te1 is true then true *)
+      label (label_to_string (beg_label+1) None) ++
+      comment "binop -> or end"
+    )
+  end
 
 (** Compile an and operation 
     val compile_andor_and : texpression -> texpression -> text *)
 and compile_andor_and te1 te2 =
-  comment "binop -> and start" ++
-  (* test first expression; if false then false, else check second expression *)
-  compile_expr te1 ++
-  popq rax ++
-  cmpq (imm 0x0) !%rax ++
-  je "1f" ++ (* go to label 1 forward if false *)
-  compile_expr te2 ++
-  popq rax ++
-  cmpq (imm 0x0) !%rax ++
-  je "1f" ++ (* go to label 1 forward if false *)
-  movq (imm 0x1) !%rax ++ (* if te1 and te2 are not false then true *)
-  jmp "2f" ++
-  label "1" ++
-  movq (imm 0x0) !%rax ++ (* if te1 or te1 is false then false *)
-  label "2" ++
-  comment "binop -> and end"
+  let beg_label = !label_counter in
+  begin
+    label_counter := !label_counter + 2;
+    (
+    comment "binop -> and start" ++
+    (* test first expression; if false then false, else check second expression *)
+    compile_expr te1 ++
+    popq rax ++
+    cmpq (imm 0x0) !%rax ++
+    je (label_to_string beg_label (Some("f"))) ++ (* go to label 1 forward if false *)
+    compile_expr te2 ++
+    popq rax ++
+    cmpq (imm 0x0) !%rax ++
+    je (label_to_string beg_label (Some("f"))) ++ (* go to label 1 forward if false *)
+    movq (imm 0x1) !%rax ++ (* if te1 and te2 are not false then true *)
+    jmp (label_to_string (beg_label+1) (Some("f"))) ++
+    label (label_to_string beg_label None) ++
+    movq (imm 0x0) !%rax ++ (* if te1 or te1 is false then false *)
+    label (label_to_string (beg_label+1) None) ++
+    comment "binop -> and end"
+    )
+  end
     
 (** Compile an and/or operation
     val compile_binop_and : texpression -> texpression -> andor_binop -> text *)
 and compile_binop_andor te1 te2 op =
-  match op with 
-  | Band -> (compile_andor_and te1 te2)
-  | Bor  -> (compile_andor_or te1 te2)
+  let res =
+    match op with 
+    | Band -> (compile_andor_and te1 te2)
+    | Bor  -> (compile_andor_or te1 te2)
+  in
+  begin
+    label_counter := !label_counter - 2; (* restore old value for label counter *)
+    res
+  end
 
 
 (** Compile an assignation 
@@ -428,71 +453,89 @@ and compile_instr (global_code: text) (cur_code: text) (instr: Ast_typed.tinstr)
   | TIexpr exp                    -> global_code, cur_code ++ compile_expr exp ++ popq rax
   | TIif (exp, i1, i2)            -> compile_instr_if global_code cur_code exp i1 i2
   | TIwhile (exp, ins)            -> compile_instr_while global_code cur_code exp ins
-  | TIfor (var, exp, exp_list, i) -> failwith "TODO"
+  | TIfor (var, exp, exp_list, i) -> compile_instr_for global_code cur_code var exp exp_list i
   | TIblock block                 -> compile_block global_code cur_code block
   | TIret exp                     -> compile_instr_ret global_code cur_code exp
-  | TIbreak                       -> failwith "TODO"
-  | TIcontinue                    -> failwith "TODO"
+  | TIbreak                       -> compile_instr_break global_code cur_code
+  | TIcontinue                    -> compile_instr_continue global_code cur_code
 
 
 (** Compile an if instruction
     val compile_intr_if : text -> text -> texpression -> tinstr -> tinstr -> text * text *)
 and compile_instr_if global_code cur_code exp i1 i2 =
-  let g1, c1 =
-    compile_instr nop nop i1
+  let beg_label = !label_counter
   in
-  let g2, c2 =
-    compile_instr nop nop i2
-  in
-  let code =
-    (
-      comment "if -> compile expr start" ++
-      compile_expr exp ++
-      comment "if -> compile expr end" ++
-      popq rax ++
-      cmpq (imm 0x0) !%rax ++ (* return 0x0 if exp is false *)
-      je "2f" ++ (* jump to else if false *)
-      comment "if -> first instr start" ++
-      label "1" ++ (* if instr *)
-      c1 ++
-      jmp "3f" ++ (* skip else statement *)
-      comment "if -> first instr end" ++
-      comment "if -> second instr start" ++
-      label "2" ++ (* else instr *)
-      c2 ++
-      jmp "3f" ++
-      comment "if -> second instr end" ++
-      label "3" (* begin next instruction *)
-    )
-  in global_code ++ g1 ++ g2, cur_code ++ code
+  begin
+    label_counter := !label_counter + 3;
+    let g1, c1 =
+      compile_instr nop nop i1
+    in
+    let g2, c2 =
+      compile_instr nop nop i2
+    in
+    let code =
+      (
+        comment "if -> compile expr start" ++
+        compile_expr exp ++
+        comment "if -> compile expr end" ++
+        popq rax ++
+        cmpq (imm 0x0) !%rax ++ (* return 0x0 if exp is false *)
+        je (label_to_string (beg_label+1) (Some("f"))) ++ (* jump to else if false *)
+        comment "if -> first instr start" ++
+        label (label_to_string beg_label None) ++ (* if instr *)
+        c1 ++
+        jmp (label_to_string (beg_label+2) (Some("f"))) ++ (* skip else statement *)
+        comment "if -> first instr end" ++
+        comment "if -> second instr start" ++
+        label (label_to_string (beg_label+1) None) ++ (* else instr *)
+        c2 ++
+        jmp (label_to_string (beg_label+2) (Some("f"))) ++
+        comment "if -> second instr end" ++
+        label (label_to_string (beg_label+2) None) (* begin next instruction *)
+      )
+    in 
+      begin
+        label_counter := !label_counter - 3; (* restor old value for label counter *)
+        global_code ++ g1 ++ g2, cur_code ++ code
+      end
+  end
 
 
 (** Compile a while instruction
     val compile_instr_while : text -> text -> texpression -> tinstr -> text -> text *)
 and compile_instr_while global_code cur_code exp ins =
-  let g1, c1 =
-    compile_instr nop nop ins
+  let beg_label = !label_counter
   in
-  let code = 
-    (
-      comment "while -> start" ++
-      label "1" ++
-      comment "while -> compile expr start" ++
-      compile_expr exp ++
-      comment "while -> compile expr end" ++
-      popq rax ++
-      comment "while -> condition check start" ++
-      cmpq (imm 0x0) !%rax ++ (* return 0x0 if exp is false *)
-      je "2f" ++ (* leave while loop *) 
-      comment "while -> condition check end" ++
-      comment "while -> instr start" ++
-      c1 ++
-      comment "while -> instr end" ++
-      jmp "1b" ++ (* check the expression again *)
-      label "2" ++ (* begin next instruction *)
-      comment "while -> end"
-    )
-  in global_code ++ g1, cur_code ++ code
+  begin
+    label_counter := !label_counter + 2;
+    let g1, c1 =
+      compile_instr nop nop ins
+    in
+    let code = 
+      (
+        comment "while -> start" ++
+        label (label_to_string beg_label None) ++
+        comment "while -> compile expr start" ++
+        compile_expr exp ++
+        comment "while -> compile expr end" ++
+        popq rax ++
+        comment "while -> condition check start" ++
+        cmpq (imm 0x0) !%rax ++ (* return 0x0 if exp is false *)
+        je (label_to_string (beg_label+1) (Some("f"))) ++ (* leave while loop *) 
+        comment "while -> condition check end" ++
+        comment "while -> instr start" ++
+        c1 ++
+        comment "while -> instr end" ++
+        jmp (label_to_string beg_label (Some("b"))) ++ (* check the expression again *)
+        label (label_to_string (beg_label+1) None) ++ (* begin next instruction *)
+        comment "while -> end"
+      )
+    in 
+      begin
+        label_counter := !label_counter - 2; (* restor old value for label counter *)
+        global_code ++ g1, cur_code ++ code
+      end
+  end
 
 
 (** Compile a return instruction
@@ -522,6 +565,99 @@ and compile_instr_ret global_code cur_code exp =
         ret
       )
   in global_code, cur_code ++ code
+
+
+(** Compile a break instruction 
+    compile_instr_break : text -> text -> text * text *)
+and compile_instr_break global_code cur_code =
+  global_code, cur_code ++ jmp (label_to_string (!label_counter-1) (Some("f"))) (* the first label after the loop *)
+
+
+(** Compile a continue instruction 
+    compile_instr_continue : text -> text -> text * text *)
+and compile_instr_continue global_code cur_code =
+  global_code, cur_code ++ jmp (label_to_string (!label_counter-2) (Some("b"))) (* the first label before the loop *)
+  
+
+(** Compile a for instruction
+    compile_instr_for : text -> text -> tdvar option -> texpression option -> texpression list -> tinstr *)
+and compile_instr_for global_code cur_code var exp exp_list i =
+  let beg_label = !label_counter
+  in
+  begin
+    label_counter := !label_counter + 2;
+    let rec compile_expression_list exp_list acc =
+      match exp_list with
+      | [] -> 
+        (
+          comment "for -> step expressions start" ++
+          acc ++
+          comment "for -> step expressions end"
+        )
+      | exp::cdr ->
+        let code = acc ++ (compile_expr exp) ++ popq rax
+          in (compile_expression_list cdr code)
+    in
+    let code_decl_var =
+      match var with 
+      | None -> 
+        (
+          cur_code ++
+          comment "for -> start" ++
+          comment "for -> no function declaration"
+        )
+      | Some(d) -> 
+        let _, c = compile_decl_var global_code cur_code d 
+          in 
+        (
+          c ++
+          comment "for -> start"
+        )
+    in
+    let code_comparison =
+      let comp_exp_condition =
+        match exp with
+        | None -> 
+          (
+            comment "for -> empty check expression" ++
+            movq (imm 0x1) !%rax
+          )
+
+        | Some(e) ->
+          (
+            comment "for -> compile expr start" ++
+            compile_expr e ++
+            comment "for -> compile expr end" ++
+            popq rax
+          )
+        in       
+      (
+        comp_exp_condition ++
+        comment "for -> condition check start" ++
+        cmpq (imm 0x0) !%rax ++ (* return 0x0 if exp is false *)
+        je (label_to_string (beg_label+1) (Some("f"))) ++ (* leave for loop *) 
+        comment "for -> condition check end"
+      )
+    in
+    let global_code_instr, code_instr = compile_instr nop nop i 
+    in 
+    let code =
+      (
+        code_decl_var ++
+        label (label_to_string beg_label None) ++ (* 1b for beginning of for loop *)
+        code_comparison ++
+        code_instr ++
+        compile_expression_list exp_list nop ++
+        jmp (label_to_string beg_label (Some("b"))) ++ (* go back to beginning of the loop *)
+        label (label_to_string (beg_label+1) None) ++ (* 2f for end of for loop *)
+        comment "for -> end"
+      ) 
+    in
+      begin
+        label_counter := !label_counter - 2; (* restor old value for label counter *)
+        global_code ++ global_code_instr, code
+      end
+  end
 
 
 (** Compile a variable declaration 
