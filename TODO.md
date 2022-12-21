@@ -33,3 +33,4 @@
 - [ ] modify mul and div for pointers ?
 - [ ] make the code by removing duplicate things in code_producer.ml + add comments and better doc
 - [x] add global counter for labels to avoid probles with nested instructions
+- [ ] add optional part (nested functions management)
