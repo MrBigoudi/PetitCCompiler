@@ -7,6 +7,8 @@ let pushn n = subq (imm n) !%rsp
 
 let label_counter = ref 0
 
+let tmp_parent_rbp =  0
+
 let label_to_string (i:int) (letter:string option) =
   match letter with
   | Some(letter) ->  (Int.to_string i)^letter
@@ -430,16 +432,22 @@ and compile_call f l =
     | te::cdr -> let acc = (compile_expr te) ++ acc
                   in (put_args_in_stack cdr acc)
   in
-  if (String.equal f.ident "putchar") || (String.equal f.ident "malloc") 
+  if (f.depth == 0) && ((String.equal f.ident "putchar") || (String.equal f.ident "malloc")) (* if f global *)
     then (compile_call_std f.ident l) 
   else
   (* put all arguments in the stack *)
   comment "caller -> put args in stack" ++
   (put_args_in_stack l nop) ++
+  (* put parent rbp in the stack *)
+  comment "caller -> put parent rbp in stack" ++
+  leaq (ind ~ofs:0 rbp) r9 ++ (* get rbp address in r9 *)
+  pushq !%r9 ++ (* push rbp address *)
   (* call the function *)
   comment "caller -> call func" ++
   call f.ident ++
   (* remove arguments from stack *)
+  comment "caller -> unstack parent rbp" ++
+  popq r9 ++
   comment "caller -> unstack args" ++
   popn (8 * List.length l) ++ 
   (* return the function result *)
@@ -710,7 +718,7 @@ and compile_decl_var (global_code: text) (cur_code: text) (dvar: Ast_typed.tdvar
       (* get the variable value in rax *)
       value ++
       popq rax ++
-      (* stocke it at the correct position *)
+      (* store it at the correct position *)
       movq !%rax (ind ~ofs:tident.offset rbp)
     in global_code, cur_code ++ code, last_loop_label
 

@@ -4,18 +4,18 @@ open Ast
 
 module Smap = Map.Make(String)
 type env = typ Smap.t
-type offset_env = int Smap.t
+type offset_env = (int*int) Smap.t
 
 exception Environnement_error of string
 
 (** add offset to idents *)
-type tident = {ident: ident ; offset : int}
+type tident = {ident: ident; offset: int; depth: int}
 
 (** double maps : using old and new environnements for blocks *)
 type dmap = { old_env : env ; new_env : env}
 type dmap_offset = {old_env : offset_env ; new_env : offset_env}
 
-(** val search_dmap : ident -> dmap -> typ *)
+(** val search_dmap : ident -> dmap_offset -> int * int *)
 let search_dmap id doub_map = 
   let oenv = doub_map.old_env in
   let nenv = doub_map.new_env in
@@ -25,26 +25,26 @@ let search_dmap id doub_map =
     | Some(t), None -> t
     | _, Some(t2) -> t2
 
-(** val in_new_env_dmap : ident -> dmap -> bool *)
+(** val in_new_env_dmap : ident -> dmap_offset -> bool *)
 let in_new_env_dmap id doub_map =
   let nenv = doub_map.new_env in 
   Smap.mem id nenv
 
-(** val add_new_dmap : ident -> typ -> dmap -> dmap ->  *)
-let add_new_dmap id ty doub_map =
+(** val add_new_dmap : ident -> int -> int -> dmap_offset -> dmap_offset *)
+let add_new_dmap id offset depth doub_map =
   let nenv = doub_map.new_env in
   if Smap.mem id nenv 
     then raise (Environnement_error("id already existing")) 
-    else { old_env = doub_map.old_env ; new_env = (Smap.add id ty nenv) }
+    else { old_env = doub_map.old_env ; new_env = (Smap.add id (offset,depth) nenv) }
 
-(** val add_old_dmap : ident -> typ -> dmap -> dmap *)
-let add_old_dmap id ty doub_map =
+(** val add_old_dmap : ident -> int -> int -> dmap_offset -> dmap_offset *)
+let add_old_dmap id offset depth doub_map =
   let oldv = doub_map.old_env in
   if Smap.mem id oldv
     then raise (Environnement_error("id already existing")) 
-    else { old_env = (Smap.add id ty oldv) ; new_env = doub_map.new_env }
+    else { old_env = (Smap.add id (offset, depth) oldv) ; new_env = doub_map.new_env }
 
-(** val union_dmap : dmap -> env *)
+(** val union_dmap : dmap_offset -> env *)
 let union_dmap doub_map =
   let oenv = doub_map.old_env in
   let nenv = doub_map.new_env in
@@ -52,7 +52,7 @@ let union_dmap doub_map =
     Smap.union union_fun oenv nenv
 
 
-(** val new_block_dmap : dmap -> dmap *)
+(** val new_block_dmap : dmap_offset -> dmap_offset *)
 let new_block_dmap doub_map =
   let oenv = union_dmap doub_map in
   let nenv = Smap.empty in 
@@ -73,7 +73,7 @@ let in_new_env_dmap_typ id (doub_map: dmap) =
   let nenv = doub_map.new_env in 
   Smap.mem id nenv
 
-(** val add_new_dmap : ident -> typ -> dmap -> dmap ->  *)
+(** val add_new_dmap : ident -> typ -> dmap -> dmap  *)
 let add_new_dmap_typ id ty (doub_map: dmap) =
   let nenv = doub_map.new_env in
   if Smap.mem id nenv 

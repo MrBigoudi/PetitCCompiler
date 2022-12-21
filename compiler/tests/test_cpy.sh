@@ -328,9 +328,16 @@ case $option in
         test_gcc;;
     "-part1" )
     	partie1;
+        echo "";
+        bonus=1;
+        echo "";
+        partie1;
+        echo "";
+        echo "";
+        echo "";
+        bonus=0;
     	partie2;
         bonus=1;
-    	partie1;
     	partie2;;
     * )
         echo "usage : $0 <option> <compilo>"
