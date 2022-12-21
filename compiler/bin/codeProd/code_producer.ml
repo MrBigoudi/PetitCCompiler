@@ -528,14 +528,14 @@ and compile_instr_while global_code cur_code exp ins =
   let beg_label = !label_counter
   in
   begin
-    label_counter := !label_counter + 2;
+    label_counter := !label_counter + 3;
     let g1, c1, _ =
       compile_instr nop nop ins beg_label
     in
     let code = 
       (
         comment "while -> start" ++
-        label (label_to_string beg_label None) ++
+        label (label_to_string (beg_label+2) None) ++
         comment "while -> compile expr start" ++
         compile_expr exp ++
         comment "while -> compile expr end" ++
@@ -547,13 +547,14 @@ and compile_instr_while global_code cur_code exp ins =
         comment "while -> instr start" ++
         c1 ++
         comment "while -> instr end" ++
-        jmp (label_to_string beg_label (Some("b"))) ++ (* check the expression again *)
+        label (label_to_string beg_label None) ++ (* label for continue *)
+        jmp (label_to_string (beg_label+2) (Some("b"))) ++ (* check the expression again *)
         label (label_to_string (beg_label+1) None) ++ (* begin next instruction *)
         comment "while -> end"
       )
     in 
       begin
-        label_counter := !label_counter - 2; (* restore old value for label counter *)
+        label_counter := !label_counter - 3; (* restore old value for label counter *)
         global_code ++ g1, cur_code ++ code, beg_label
       end
   end
@@ -607,7 +608,7 @@ and compile_instr_continue global_code cur_code last_loop_label =
   let code =
     (
       comment "continue -> start" ++
-      jmp (label_to_string last_loop_label (Some("b"))) ++ (* the first label before the loop *)
+      jmp (label_to_string last_loop_label (Some("f"))) ++ (* the first label before the loop *)
       comment "continue -> end"
     )
   in
@@ -682,7 +683,7 @@ and compile_instr_for global_code cur_code var exp exp_list i =
         label (label_to_string (beg_label+2) None) ++ (* 1b for beginning of for loop *)
         code_comparison ++
         code_instr ++
-        label (label_to_string beg_label None) ++ (* 1b for beginning of for loop *)
+        label (label_to_string beg_label None) ++ (* label for continue *)
         compile_expression_list exp_list nop ++
         jmp (label_to_string (beg_label+2) (Some("b"))) ++ (* go back to beginning of the loop *)
         label (label_to_string (beg_label+1) None) ++ (* 2f for end of for loop *)
