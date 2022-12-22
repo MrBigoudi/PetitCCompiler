@@ -39,25 +39,33 @@ and compile_const cst =
   | False -> pushq (imm 0x0)
   | Null -> pushq (imm 0x0)
 
-(** Compile a variable
-    val compile_var : Ast_typed.tident -> text *)
-and compile_var tident =
+(** Get the real address in r8
+    val get_real_rbp_in_r8 : Ast_typed.tident -> text *)
+and get_real_rbp_in_r8 (tident: Ast_typed.tident) =
   let rec push_var depth acc =
     if (depth < !cur_fun_depth)
       then
         let code =
           (    
-            comment ("var -> from different activation table start, depth = "^Int.to_string depth) ++ 
+            comment ("get rbp -> from different activation table start, depth = "^Int.to_string depth) ++ 
             movq (ind ~ofs:16 r8) !%r8 ++
-            comment ("var -> from different activation table end, depth = "^Int.to_string depth)
+            comment ("get rbp -> from different activation table end, depth = "^Int.to_string depth)
           )
         in (push_var (depth+1) (acc ++ code))
       else
-        acc ++ pushq (ind ~ofs:tident.offset r8)
+        acc
+  in push_var (tident.depth) (movq !%rbp !%r8)
+
+(** Compile a variable
+    val compile_var : Ast_typed.tident -> text *)
+and compile_var tident =
+  (* print_string ("var.ident = "^tident.ident^", var.depth = "^Int.to_string tident.depth^", var.offset = "^Int.to_string tident.offset^", cur depth = "^Int.to_string !cur_fun_depth^"\n"); *)
+  let push_var =
+    (get_real_rbp_in_r8 tident) ++ pushq (ind ~ofs:tident.offset r8)
   in
     (
       comment "var -> start" ++
-      (push_var (tident.depth) (movq !%rbp !%r8)) ++
+      push_var ++
       comment "var -> end"
     )
 
@@ -102,7 +110,9 @@ and compile_unop_uamp te =
   | Tptr _ -> nop (* do nothing, address already in rax *)
   | _ -> begin
           match te.tdesc with 
-          | TEvar id -> leaq (ind ~ofs:id.offset rbp) rax
+          | TEvar id -> 
+            get_real_rbp_in_r8 id ++
+            leaq (ind ~ofs:id.offset r8) rax
           | _ -> assert false
         end
 
@@ -114,7 +124,8 @@ and compile_unop_uincr te is_right =
     | TEvar id -> 
       (
         comment "incr -> assign TEvar" ++
-        movq !%rax (ind ~ofs:id.offset rbp)
+        get_real_rbp_in_r8 id ++
+        movq !%rax (ind ~ofs:id.offset r8)
       )
     | TEunop (Ustar,te_prim) -> 
       (
@@ -162,7 +173,8 @@ and compile_unop_udecr te is_right =
     | TEvar id -> 
       (
         comment "decr -> assign TEvar" ++
-        movq !%rax (ind ~ofs:id.offset rbp)
+        get_real_rbp_in_r8 id ++
+        movq !%rax (ind ~ofs:id.offset r8)
       )
     | TEunop (Ustar,te_prim) -> 
       (
@@ -395,10 +407,9 @@ and compile_assign te1 te2 =
     match te1.tdesc with 
     | TEvar ti -> 
       (
-        compile_expr te1 ++
-        popq rax ++ (* get return address *)
         popq rbx ++ (* get assigned value *)
-        movq !%rbx (ind ~ofs:ti.offset rbp) (* te1 is a variable *)
+        get_real_rbp_in_r8 ti ++
+        movq !%rbx (ind ~ofs:ti.offset r8) (* te1 is a variable *)
       )
     | TEunop (Ustar, te1_prim) -> (* te1 is a derefenced pointer *)
         (
@@ -454,7 +465,7 @@ and compile_call f l =
     then (compile_call_std f.ident l) 
   else
     let rec push_parent_rbp depth acc =
-      if (depth <= 0) 
+      if (depth < 0) 
         then acc 
       else
         let code =
@@ -466,6 +477,7 @@ and compile_call f l =
           )
         in (push_parent_rbp (depth-1) (acc++code))
   in 
+  comment "caller -> start" ++
   (* put all arguments in the stack *)
   comment "caller -> put args in stack" ++
   (put_args_in_stack l nop) ++

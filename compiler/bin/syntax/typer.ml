@@ -406,7 +406,7 @@ and compute_type_dfct env fct is_global fpcur depthcur offset_env =
                 in
                 let new_offset_env_tmp = (add_new_dmap ident 0 depthcur fct_offset_env) in
                 (* print_dmap_typ new_env; *)
-                let (tdesci,_,fpnew,_,_) = (compute_type_block new_env dinstr_list typ true fpcur depthcur new_offset_env_tmp) (* t0 is now the fun return typ *)
+                let (tdesci,_,fpnew,_,_) = (compute_type_block new_env dinstr_list typ true 0 depthcur (new_block_dmap new_offset_env_tmp)) (* t0 is now the fun return typ *)
                 in 
                 let new_offset_env_without_params = try (add_new_dmap ident fpnew depthcur offset_env) with _ -> (handle_error 23 locdi (Some(ident)))
                 in
