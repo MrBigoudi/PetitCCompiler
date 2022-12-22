@@ -6,6 +6,7 @@ let popn n = addq (imm n) !%rsp
 let pushn n = subq (imm n) !%rsp
 
 let label_counter = ref 0
+let cur_fun_depth = ref 0
 
 let tmp_parent_rbp =  0
 
@@ -41,8 +42,24 @@ and compile_const cst =
 (** Compile a variable
     val compile_var : Ast_typed.tident -> text *)
 and compile_var tident =
-  (* comment "compile var" ++ *)
-  pushq (ind ~ofs:tident.offset rbp) (* return the variable adress *)
+  let rec push_var depth acc =
+    if (depth < !cur_fun_depth)
+      then
+        let code =
+          (    
+            comment ("var -> from different activation table start, depth = "^Int.to_string depth) ++ 
+            movq (ind ~ofs:16 r8) !%r8 ++
+            comment ("var -> from different activation table end, depth = "^Int.to_string depth)
+          )
+        in (push_var (depth+1) (acc ++ code))
+      else
+        acc ++ pushq (ind ~ofs:tident.offset r8)
+  in
+    (
+      comment "var -> start" ++
+      (push_var (tident.depth) (movq !%rbp !%r8)) ++
+      comment "var -> end"
+    )
 
 (** Compile a unary operation 
     val compile_unop : Ast.unop -> Ast_typed.texpression -> text *)
@@ -426,22 +443,35 @@ and compile_call_std ident te_list =
 (** Compile a function call
     val compile_call : tident -> texpression list -> text *)
 and compile_call f l =
+  (* print_string ("f.depth = "^Int.to_string f.depth^", cur depth = "^Int.to_string !cur_fun_depth^"\n"); *)
   let rec put_args_in_stack te_list acc =
     match te_list with 
     | [] -> acc
     | te::cdr -> let acc = (compile_expr te) ++ acc
                   in (put_args_in_stack cdr acc)
   in
-  if (f.depth == 0) && ((String.equal f.ident "putchar") || (String.equal f.ident "malloc")) (* if f global *)
+  if ((String.equal f.ident "putchar") || (String.equal f.ident "malloc")) (* if f global *)
     then (compile_call_std f.ident l) 
   else
+    let rec push_parent_rbp depth acc =
+      if (depth <= 0) 
+        then acc 
+      else
+        let code =
+          (
+            comment ("caller -> move back, depth = "^Int.to_string depth^" start") ++
+            popq r8 ++ (* get old pushed rbp *)
+            pushq (ind ~ofs:0 r8) ++ (* push one parent above *)
+            comment ("caller -> move back, depth = "^Int.to_string depth^" end")
+          )
+        in (push_parent_rbp (depth-1) (acc++code))
+  in 
   (* put all arguments in the stack *)
   comment "caller -> put args in stack" ++
   (put_args_in_stack l nop) ++
   (* put parent rbp in the stack *)
   comment "caller -> put parent rbp in stack" ++
-  leaq (ind ~ofs:0 rbp) r9 ++ (* get rbp address in r9 *)
-  pushq !%r9 ++ (* push rbp address *)
+  (push_parent_rbp (!cur_fun_depth - f.depth) (pushq !%rbp)) ++ (* push rbp address of the static parent *)
   (* call the function *)
   comment "caller -> call func" ++
   call f.ident ++
@@ -748,8 +778,17 @@ and compile_block (global_code: text) (cur_code: text) (blck: Ast_typed.tblock) 
 (** Compile a function declaration
     val compile_decl_fun : text -> text -> tdfct -> int -> text * text * int *)
 and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct) last_loop_label =
+  let fun_offset_before = !cur_fun_depth in
   match dfct with TDfct(typ, tident, _, tblock) ->
+    let label_end_fun = (tident.ident^"_end") in
+    let jump_to_end =
+      if (tident.depth <> 0) (* jump at the end of function declaration *)
+        then jmp label_end_fun
+      else nop
+    in
+    cur_fun_depth := tident.depth;
     let beg_code =
+      jump_to_end ++
       label tident.ident ++
       (* save rbp *)
       comment "callee -> save rbp" ++
@@ -801,8 +840,13 @@ and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct
           cur_c ++
           (* comment "cur_code -> end" ++ *)
           end_code ++
-          end_main
-        in gbl_c, cur_code ++ code, last_loop_label
+          end_main ++
+          label label_end_fun
+        in
+          begin 
+            cur_fun_depth := fun_offset_before;
+            gbl_c, cur_code ++ code, last_loop_label
+          end
 
 
 (** Compile a file include representing a program 

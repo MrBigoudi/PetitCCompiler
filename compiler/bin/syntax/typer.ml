@@ -201,10 +201,12 @@ and type_call env id e_list loc offset_env =
   in
     match fct_typ with 
       | Tfct(ret_typ, param_typ) ->
+        (* print_dmap offset_env; *)
+        let offset, depth = (search_dmap id offset_env) in
         (* test if given parameters are correct *)
         let rec test_param_fun_call e_list param_typ_list te_list =
           match (e_list,param_typ_list) with
-          | ([],[]) -> TEcall({ident = id; offset = 0; depth = 0}, te_list), ret_typ
+          | ([],[]) -> TEcall({ident = id; offset = offset; depth = depth}, te_list), ret_typ
           | ([],_) -> (handle_error 15 loc (Some(id))) (* not enough params *)
           | (_,[]) -> (handle_error 16 loc (Some(id))) (* too many params *)
           | (e::e_cdr), (p::p_cdr) ->
@@ -402,10 +404,14 @@ and compute_type_dfct env fct is_global fpcur depthcur offset_env =
                 (* new environment with only the function declaration *)
                 let new_env_without_params = try (add_new_dmap_typ ident fun_typ env) with _ -> (handle_error 23 locdi (Some(ident)))
                 in
+                let new_offset_env_tmp = (add_new_dmap ident 0 depthcur fct_offset_env) in
                 (* print_dmap_typ new_env; *)
-                let (tdesci,_,fpnew,_,_) = (compute_type_block new_env dinstr_list typ true fpcur depthcur fct_offset_env) (* t0 is now the fun return typ *)
-                in match tdesci with 
-                  | TIblock t_block -> TDfct(fun_typ, {ident = ident; offset = fpnew; depth = depthcur}, new_plist, t_block), new_env_without_params, fpcur, depthcur, offset_env
+                let (tdesci,_,fpnew,_,_) = (compute_type_block new_env dinstr_list typ true fpcur depthcur new_offset_env_tmp) (* t0 is now the fun return typ *)
+                in 
+                let new_offset_env_without_params = try (add_new_dmap ident fpnew depthcur offset_env) with _ -> (handle_error 23 locdi (Some(ident)))
+                in
+                  match tdesci with 
+                  | TIblock t_block -> TDfct(fun_typ, {ident = ident; offset = fpnew; depth = depthcur}, new_plist, t_block), new_env_without_params, fpcur, depthcur, new_offset_env_without_params
                   | _ -> assert false (* should not end up here *)
 
           
@@ -419,13 +425,16 @@ and type_ast parsed_ast =
   let env = add_new_dmap_typ "malloc" (Tfct(Tptr(Tvoid), [Tint])) env in
   let env = add_new_dmap_typ "putchar" (Tfct(Tint, [Tint]))  env in
   let env = new_block_dmap_typ env in
+  (* add void* malloc(int n) and int putchar(int c) in the offset env as global function *)
+  let offset_env = add_old_dmap "malloc" 0 0 offset_env in
+  let offset_env = add_old_dmap "putchar" 0 0 offset_env in
     let dfct_list = match parsed_ast with FileInclude(l) -> l in
-      let rec compute_type_dfct_list dfct_list new_env tdfct_list =
+      let rec compute_type_dfct_list dfct_list new_env tdfct_list new_offset_env =
         match dfct_list with 
         | [] -> TFileInclude(tdfct_list)
         | cur_dfct::cdr -> 
           let (typ,ident,param_list,loc) = match cur_dfct with {descdfct=Dfct(typ,ident,param_list,_) ; locdfct=loc} -> (typ,ident,param_list,loc) in
-            let (cur_tdfct, new_env, _, _, _) = compute_type_dfct new_env cur_dfct true 0 0 offset_env in (* true for global fct definition and 0 for initial depth and fp *)
+            let (cur_tdfct, new_env, _, _, new_offset_env) = compute_type_dfct new_env cur_dfct true 0 0 new_offset_env in (* true for global fct definition and 0 for initial depth and fp *)
             (check_main_in_env new_env typ ident param_list);
             (* add type of f in global env *)
             let rec get_fct_type param_list types_list =
@@ -438,8 +447,8 @@ and type_ast parsed_ast =
               with _ -> (handle_error 23 loc (Some(ident)))
             in
             let new_env = ({old_env = new_env.old_env ; new_env = Smap.empty}:dmap) in
-              (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct])) (* update the global env *)
+              (compute_type_dfct_list cdr new_env (tdfct_list@[cur_tdfct]) (new_block_dmap new_offset_env)) (* update the global env *)
       in 
-        let typed_ast = (compute_type_dfct_list dfct_list env []) in
+        let typed_ast = (compute_type_dfct_list dfct_list env [] offset_env) in
           if not (!main_is_present) then (handle_error 0 not_found_loc None)
           else typed_ast

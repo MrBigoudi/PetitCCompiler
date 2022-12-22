@@ -33,16 +33,12 @@ let in_new_env_dmap id doub_map =
 (** val add_new_dmap : ident -> int -> int -> dmap_offset -> dmap_offset *)
 let add_new_dmap id offset depth doub_map =
   let nenv = doub_map.new_env in
-  if Smap.mem id nenv 
-    then raise (Environnement_error("id already existing")) 
-    else { old_env = doub_map.old_env ; new_env = (Smap.add id (offset,depth) nenv) }
+  { old_env = doub_map.old_env ; new_env = (Smap.add id (offset,depth) nenv) }
 
 (** val add_old_dmap : ident -> int -> int -> dmap_offset -> dmap_offset *)
 let add_old_dmap id offset depth doub_map =
   let oldv = doub_map.old_env in
-  if Smap.mem id oldv
-    then raise (Environnement_error("id already existing")) 
-    else { old_env = (Smap.add id (offset, depth) oldv) ; new_env = doub_map.new_env }
+  { old_env = (Smap.add id (offset, depth) oldv) ; new_env = doub_map.new_env }
 
 (** val union_dmap : dmap_offset -> env *)
 let union_dmap doub_map =
@@ -107,11 +103,27 @@ let print_dmap_typ (doub_map: dmap) =
   let f key typ =
     print_string ("key: "^key^", typ: "^typ_to_string typ^"\n")
   in
-  print_string "\nold env:\n";
-  Smap.iter f doub_map.old_env;
-  print_string "\nnew env:\n";
-  Smap.iter f doub_map.new_env;
-  print_string "\n";
+  begin
+    print_string "\nold env:\n";
+    Smap.iter f doub_map.old_env;
+    print_string "\nnew env:\n";
+    Smap.iter f doub_map.new_env;
+    print_string "\n"
+  end
+
+(** val print_dmap : dmap_offset -> unit *)
+let print_dmap (doub_map: dmap_offset) =
+  let f key value =
+    let offset, depth = value in
+      print_string ("key: "^key^", offset: "^(Int.to_string offset)^", depth: "^(Int.to_string depth)^"\n")
+  in
+  begin
+    print_string "\nold env:\n";
+    Smap.iter f doub_map.old_env;
+    print_string "\nnew env:\n";
+    Smap.iter f doub_map.new_env;
+    print_string "\n"
+  end
 
 
 
