@@ -8,6 +8,10 @@ let pushn n = subq (imm n) !%rsp
 let label_counter = ref 0
 let cur_fun_depth = ref 0
 
+(* this is a callee-saved register that will be 
+    used to store the current depth of nested function calls *)
+(* let dyn_depth_register = r15  *)
+
 let tmp_parent_rbp =  0
 
 let label_to_string (i:int) (letter:string option) =
@@ -59,13 +63,31 @@ and get_real_rbp_in_r8 (tident: Ast_typed.tident) =
 (** Compile a variable
     val compile_var : Ast_typed.tident -> text *)
 and compile_var tident =
-  (* print_string ("var.ident = "^tident.ident^", var.depth = "^Int.to_string tident.depth^", var.offset = "^Int.to_string tident.offset^", cur depth = "^Int.to_string !cur_fun_depth^"\n"); *)
+  let rec push_argument depth acc =
+    if (depth < !cur_fun_depth)
+      then
+        let code =
+          (    
+            comment ("get rbp -> from different activation table start, depth = "^Int.to_string depth) ++ 
+            movq (ind ~ofs:0 r8) !%r8 ++
+            comment ("get rbp -> from different activation table end, depth = "^Int.to_string depth)
+          )
+        in (push_argument (depth+1) (acc ++ code))
+      else
+        acc ++ pushq (ind ~ofs:tident.offset r8)
+  in
+  print_string ("var.ident = "^tident.ident^", var.depth = "^Int.to_string tident.depth^", var.offset = "^Int.to_string tident.offset^", cur depth = "^Int.to_string !cur_fun_depth^"\n");
   let push_var =
     (get_real_rbp_in_r8 tident) ++ pushq (ind ~ofs:tident.offset r8)
   in
+  let code =
+    if (tident.offset > 0) (* if variable *)
+      then push_argument (tident.depth) (movq !%rbp !%r8)
+      else push_var
+  in
     (
       comment "var -> start" ++
-      push_var ++
+      code ++
       comment "var -> end"
     )
 
@@ -464,38 +486,72 @@ and compile_call f l =
   if ((String.equal f.ident "putchar") || (String.equal f.ident "malloc")) (* if f global *)
     then (compile_call_std f.ident l) 
   else
-    let rec push_parent_rbp depth acc =
-      if (depth < 0) 
-        then acc 
-      else
-        let code =
+    let beg_label = !label_counter in
+    begin
+      label_counter := !label_counter + 3;
+      let push_parent_rbp =
+        (
+          comment "caller -> incr dynamic depth counter" ++
+          incq !%r15 ++
+          comment "caller -> push current rbp" ++
+          pushq !%rbp ++
+          comment "caller -> put dynamic depth counter in r14" ++
+          movq !%r15 !%r14 ++
+          (* while r14 <> f.depth push caller rbp *)
+          comment "caller -> while loop for pushing parent start" ++
+          label (label_to_string (beg_label+2) None) ++
+          comment "caller -> test if dyn depth equal fun depth, start" ++
+          cmpq (imm f.depth) !%r14 ++
+          je (label_to_string (beg_label+1) (Some("f"))) ++
+          comment "caller -> test if dyn depth equal fun depth, end" ++
+            (* push parent rbp *)
+          comment "caller -> move back start" ++
+          popq r8 ++ (* get old pushed rbp *)
+          pushq (ind ~ofs:0 r8) ++ (* push one parent above *)
+          comment "caller -> move back end" ++
+          comment "caller -> decr while depth start" ++
+          decq !%r14 ++
+          comment "caller -> decr while depth end" ++
+          label (label_to_string beg_label None) ++
+          jmp (label_to_string (beg_label+2) (Some("b"))) ++
+          label (label_to_string (beg_label+1) None) ++
+          comment "caller -> while loop for pushing parent end"
+        )
+      in 
+        let non_significatif_rbp_for_global =
+          if (f.depth == 0)
+            then pushq !%rbp
+            else push_parent_rbp
+        in
+        let compiled_call =
           (
-            comment ("caller -> move back, depth = "^Int.to_string depth^" start") ++
-            popq r8 ++ (* get old pushed rbp *)
-            pushq (ind ~ofs:0 r8) ++ (* push one parent above *)
-            comment ("caller -> move back, depth = "^Int.to_string depth^" end")
+            comment "caller -> start" ++
+            (* put all arguments in the stack *)
+            comment "caller -> put args in stack" ++
+            (put_args_in_stack l nop) ++
+            (* put parent rbp in the stack *)
+            non_significatif_rbp_for_global ++ (* push rbp address of the static parent *)
+            (* call the function *)
+            comment "caller -> call func" ++
+            call f.ident ++
+            (* remove arguments from stack *)
+            comment "caller -> unstack parent rbp" ++
+            popq r9 ++
+            comment "caller -> decr dynamic depth counter" ++
+            decq !%r15 ++
+            comment "caller -> unstack args" ++
+            popn (8 * List.length l) ++ 
+            (* return the function result *)
+            comment "caller -> stack the result" ++
+            pushq !%rax ++
+            comment "caller -> end "
           )
-        in (push_parent_rbp (depth-1) (acc++code))
-  in 
-  comment "caller -> start" ++
-  (* put all arguments in the stack *)
-  comment "caller -> put args in stack" ++
-  (put_args_in_stack l nop) ++
-  (* put parent rbp in the stack *)
-  comment "caller -> put parent rbp in stack" ++
-  (push_parent_rbp (!cur_fun_depth - f.depth) (pushq !%rbp)) ++ (* push rbp address of the static parent *)
-  (* call the function *)
-  comment "caller -> call func" ++
-  call f.ident ++
-  (* remove arguments from stack *)
-  comment "caller -> unstack parent rbp" ++
-  popq r9 ++
-  comment "caller -> unstack args" ++
-  popn (8 * List.length l) ++ 
-  (* return the function result *)
-  comment "caller -> stack the result" ++
-  pushq !%rax ++
-  comment "caller -> end "
+        in
+          begin
+            label_counter := !label_counter - 3; (* restore old value for label counter *)
+            compiled_call;
+          end
+    end
 
 
 (** Compile a call to sizeof 
@@ -613,6 +669,15 @@ and compile_instr_while global_code cur_code exp ins =
 (** Compile a return instruction
     val compile_instr_ret : text -> text -> texpression -> int -> text * text * int *)
 and compile_instr_ret global_code cur_code exp last_loop_label =
+  let restore_dyn_counter =
+    if (!cur_fun_depth <> 0)
+      then nop
+      else
+        (        
+          comment "restore dynamic depth counter and save old one" ++
+          movq !%r13 !%r15
+        )
+  in
   let code = 
     match exp with
     | Some(exp) ->
@@ -620,7 +685,8 @@ and compile_instr_ret global_code cur_code exp last_loop_label =
         compile_expr exp ++ 
         (* put result in rax *)
         comment "callee -> put result in rax" ++
-        popq rax ++ 
+        popq rax ++
+        restore_dyn_counter ++
         comment "callee -> unstack activation table" ++
         leave ++
         comment "callee -> end" ++
@@ -630,7 +696,8 @@ and compile_instr_ret global_code cur_code exp last_loop_label =
       (
         (* put 0x0 in rax *)
         comment "callee -> put result in rax (0x0 cause void)" ++
-        movq (imm 0x0) !%rax ++ 
+        movq (imm 0x0) !%rax ++
+        restore_dyn_counter ++
         comment "callee -> unstack activation table" ++
         leave ++
         comment "callee -> end" ++
@@ -792,16 +859,37 @@ and compile_block (global_code: text) (cur_code: text) (blck: Ast_typed.tblock) 
 and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct) last_loop_label =
   let fun_offset_before = !cur_fun_depth in
   match dfct with TDfct(typ, tident, _, tblock) ->
+    (* print_string ("decl_fun, f = "^tident.ident^", f.depth = "^Int.to_string tident.depth^", f.offset = "^Int.to_string tident.offset^"\n");  *)
     let label_end_fun = (tident.ident^"_end") in
     let jump_to_end =
       if (tident.depth <> 0) (* jump at the end of function declaration *)
         then jmp label_end_fun
       else nop
     in
+    let init_dyn_counter =
+      if (tident.depth <> 0)
+        then nop
+        else
+          (        
+            comment "init dynamic depth counter and save old one" ++
+            movq !%r15 !%r13 ++
+            xorq !%r15 !%r15
+          )
+    in
+    let restore_dyn_counter =
+      if (tident.depth <> 0)
+        then nop
+        else
+          (        
+            comment "restore dynamic depth counter and save old one" ++
+            movq !%r13 !%r15
+          )
+    in
     cur_fun_depth := tident.depth;
     let beg_code =
       jump_to_end ++
       label tident.ident ++
+      init_dyn_counter ++
       (* save rbp *)
       comment "callee -> save rbp" ++
       pushq !%rbp ++
@@ -827,6 +915,7 @@ and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct
         | Tfct(ty,_) when Typer.equ_type ty Tvoid -> 
           (
             comment "useless ret -> start" ++
+            restore_dyn_counter ++
             useless_end_code ++
             comment "useless ret -> end"
           )
@@ -842,6 +931,7 @@ and compile_decl_fun (global_code: text) (cur_code: text) (dfct: Ast_typed.tdfct
             then 
               (
               comment "useless ret -> start" ++
+              restore_dyn_counter ++
               useless_end_code ++
               comment "useless ret -> end"
               )
