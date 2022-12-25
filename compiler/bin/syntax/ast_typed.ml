@@ -4,12 +4,12 @@ open Ast
 
 module Smap = Map.Make(String)
 type env = typ Smap.t
-type offset_env = (int*int) Smap.t
+type offset_env = (int*int*string) Smap.t
 
 exception Environnement_error of string
 
 (** add offset to idents *)
-type tident = {ident: ident; offset: int; depth: int}
+type tident = {ident: ident; offset: int; depth: int; parent: string}
 
 (** double maps : using old and new environnements for blocks *)
 type dmap = { old_env : env ; new_env : env}
@@ -30,15 +30,15 @@ let in_new_env_dmap id doub_map =
   let nenv = doub_map.new_env in 
   Smap.mem id nenv
 
-(** val add_new_dmap : ident -> int -> int -> dmap_offset -> dmap_offset *)
-let add_new_dmap id offset depth doub_map =
+(** val add_new_dmap : ident -> int -> int -> string -> dmap_offset -> dmap_offset *)
+let add_new_dmap id offset depth parent doub_map =
   let nenv = doub_map.new_env in
-  { old_env = doub_map.old_env ; new_env = (Smap.add id (offset,depth) nenv) }
+  { old_env = doub_map.old_env ; new_env = (Smap.add id (offset,depth, parent) nenv) }
 
-(** val add_old_dmap : ident -> int -> int -> dmap_offset -> dmap_offset *)
-let add_old_dmap id offset depth doub_map =
+(** val add_old_dmap : ident -> int -> int -> string -> dmap_offset -> dmap_offset *)
+let add_old_dmap id offset depth parent doub_map =
   let oldv = doub_map.old_env in
-  { old_env = (Smap.add id (offset, depth) oldv) ; new_env = doub_map.new_env }
+  { old_env = (Smap.add id (offset, depth, parent) oldv) ; new_env = doub_map.new_env }
 
 (** val union_dmap : dmap_offset -> env *)
 let union_dmap doub_map =
@@ -114,8 +114,8 @@ let print_dmap_typ (doub_map: dmap) =
 (** val print_dmap : dmap_offset -> unit *)
 let print_dmap (doub_map: dmap_offset) =
   let f key value =
-    let offset, depth = value in
-      print_string ("key: "^key^", offset: "^(Int.to_string offset)^", depth: "^(Int.to_string depth)^"\n")
+    let offset, depth, parent = value in
+      print_string ("key: "^key^", offset: "^(Int.to_string offset)^", depth: "^(Int.to_string depth)^", parent: "^parent^"\n")
   in
   begin
     print_string "\nold env:\n";
