@@ -56,4 +56,10 @@ For the typer we are using a typed-AST and the typer transforms the AST into the
 
 ## Code production
 
-We've started by remebering offsets of variables during the typer checks. However we still have to figure out how it should behave for nested functions.
+During the typer analysis, we create a `dmap` to map the offset, the depth and the parent name of each variables and functions. We then use these informations during the code production. 
+
+First, we use the offset to reference a variable in the produced assembly code instead of its name, The offset represents the place of the so call variable in the stack relatively to the `rbp` pointer which is saved by the callee. We follow the caller/callee conventions but instead of using registers for the 6 first arguments, each arguments is stack. 
+
+Moreover, after pushing its argument, every caller pushes its static parent's rbp address in the stack using the parent name saved during the typer phase to find it. The first local variable of a function is placed at `-16(rbp)` since the function name is the second thing saved in the stack (after the current rbp) by a callee.
+
+The depth saved during the typer phase is used to get the value (or the address) for nested functions. Indeed, the offset saved during the typer phase depends of another activation table which we need to find in the stack before accessing the variable we want. To find this activation table, we keep a global variable `cur_fun_depth` corresponding to the current function depth and we compare it with the depth saved during the typer to recursively move the correct `rbp` value inside `r8`. We can then use the offset previously saved as a displacement compared to the value stored in `r8`.  

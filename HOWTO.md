@@ -59,7 +59,7 @@ $ make tests TEST_FLAGS=-<option>
 
 ## How to use the compiler
 
-To use the compiler, just give it a valid `PetitC` file as input and it will generate an `.as` file corresponding to the assembly code generated.
+To use the compiler, just give it a valid `PetitC` file as input and it will generate an `.s` file corresponding to the assembly code generated.
 
 ```sh
 $ ./petitc <inputFile>.c
