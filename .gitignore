@@ -10,7 +10,7 @@
 
 # ocamlbuild working directory
 _build/
-compiler/tests/customTests/*
+customTests/
 
 # ocamlbuild targets
 *.byte
@@ -33,3 +33,5 @@ _opam/
 *.conflicts
 *.out
 petitc
+*.s
+out

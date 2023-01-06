@@ -19,7 +19,7 @@ type typ =
   | Tbool
   | Tvoid
   | Tptr of typ
-  (* return type * type list of the arguments *)
+  (* return type * list of types for arguments *)
   | Tfct of typ * typ list
 
 (** val typ_to_string : typ -> string *)

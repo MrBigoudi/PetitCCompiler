@@ -201,11 +201,13 @@ for f in ${BASE_DIR}/exec/*.c; do
     fi
     echo -n "."
     asm=${BASE_DIR}/exec/`basename $f .c`.s
+    # echo "asm : ${asm}"
     rm -f $asm
     expected=${BASE_DIR}/exec/`basename $f .c`.out
     max=`expr $max + 1`;
     if compile $f; then
 	rm -f out
+    rm -f a.out
 	score_comp=`expr $score_comp + 1`;
 	if gcc -no-pie $asm && ./a.out > out; then
 	    score_out=`expr $score_out + 1`;
@@ -307,6 +309,9 @@ case $option in
     	partie2;
     	partie3;;
     "-allb" )
+    	partie1;
+    	partie2;
+    	partie3;
         bonus=1;
     	partie1;
     	partie2;
@@ -318,6 +323,9 @@ case $option in
     	partie3;;
     "-vallb" )
         verbose=1;
+    	partie1;
+    	partie2;
+    	partie3;
         bonus=1;
     	partie1;
     	partie2;
@@ -326,9 +334,16 @@ case $option in
         test_gcc;;
     "-part1" )
     	partie1;
+        echo "";
+        bonus=1;
+        echo "";
+        partie1;
+        echo "";
+        echo "";
+        echo "";
+        bonus=0;
     	partie2;
         bonus=1;
-    	partie1;
     	partie2;;
     * )
         echo "usage : $0 <option> <compilo>"

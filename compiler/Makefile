@@ -22,7 +22,7 @@ PARSER := $(SYNTAX_FOLDER)/parser.mly
 TARGET    := main.exe
 COMPILER  := petitc
 TEST      := test_cpy.sh
-TEST_FLAGS := -v1
+TEST_FLAGS := -vallb
 
 .PHONY: all help clean tests explain main
 
@@ -56,7 +56,6 @@ explain:
 clean_tests:
 	@printf "\n********** Cleaning tests **********\n"
 ifneq ("$(wildcard $(TEST_FOLDER)/a.out)","")
-	@rm $(TEST_FOLDER)/*.o
 	@rm $(TEST_FOLDER)/*out*
 endif
 

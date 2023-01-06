@@ -1,6 +1,6 @@
 (executable
  (name main)
- (libraries syntax ocolor)
+ (libraries syntax codeProd ocolor)
  (promote (until-clean))
  (flags ()))
 
