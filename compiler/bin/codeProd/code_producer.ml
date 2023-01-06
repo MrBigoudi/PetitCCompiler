@@ -444,8 +444,12 @@ and compile_call_std ident te_list =
   compile_expr te ++
   comment "caller -> put args in rdi (cause standard function)" ++
   popq rdi++
+  comment "caller -> align stack" ++
+  movq !%rsp !%r13 ++
+  andq (imm (-16)) !%rsp ++
   comment "caller -> call func" ++
   call ident ++
+  movq !%r13 !%rsp ++
   comment "caller -> stack the result" ++
   pushq !%rax ++
   comment "caller -> end "

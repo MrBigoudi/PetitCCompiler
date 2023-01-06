@@ -22,7 +22,7 @@ PARSER := $(SYNTAX_FOLDER)/parser.mly
 TARGET    := main.exe
 COMPILER  := petitc
 TEST      := test_cpy.sh
-TEST_FLAGS := -v1
+TEST_FLAGS := -vallb
 
 .PHONY: all help clean tests explain main
 

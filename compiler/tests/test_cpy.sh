@@ -309,6 +309,9 @@ case $option in
     	partie2;
     	partie3;;
     "-allb" )
+    	partie1;
+    	partie2;
+    	partie3;
         bonus=1;
     	partie1;
     	partie2;
@@ -320,6 +323,9 @@ case $option in
     	partie3;;
     "-vallb" )
         verbose=1;
+    	partie1;
+    	partie2;
+    	partie3;
         bonus=1;
     	partie1;
     	partie2;

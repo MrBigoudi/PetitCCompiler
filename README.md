@@ -58,7 +58,7 @@ For the typer we are using a typed-AST and the typer transforms the AST into the
 
 During the typer analysis, we create a `dmap` to map the offset, the depth and the parent name of each variables and functions. We then use these informations during the code production. 
 
-First, we use the offset to reference a variable in the produced assembly code instead of its name, The offset represents the place of the so call variable in the stack relatively to the `rbp` pointer which is saved by the callee. We follow the caller/callee conventions but instead of using registers for the 6 first arguments, each arguments is stack. 
+First, we use the offset to reference a variable in the produced assembly code instead of its name, The offset represents the place of the so call variable in the stack relatively to the `rbp` pointer which is saved by the callee. We follow the caller/callee conventions but instead of using registers for the 6 first arguments, each arguments is stack. We aligned the stack before calling functions from the standard library.
 
 Moreover, after pushing its argument, every caller pushes its static parent's rbp address in the stack using the parent name saved during the typer phase to find it. The first local variable of a function is placed at `-16(rbp)` since the function name is the second thing saved in the stack (after the current rbp) by a callee.
 
