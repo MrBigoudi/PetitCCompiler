@@ -47,7 +47,8 @@ let handle_error err_num pos stropt =
     | 28 -> "Main function should return an int" 
     | 29 -> "Break statement not within a loop"
     | 30 -> "Continue statement not within a loop"
-    | 31 -> "Called object which is not a function or function pointer"
+    | 31 -> "Called object which is not a fassert falseunction or function pointer"
+    | 42 -> "¯\\_(ツ)_/¯"
     | _  -> "Unkown error"
   in raise (Typing_error(error, pos, stropt))
 
@@ -418,7 +419,7 @@ and compute_type_dfct env fct is_global fpcur depthcur offset_env =
                     let res = 
                       match tdesci with 
                       | TIblock t_block -> TDfct(fun_typ, {ident = ident; offset = fpnew; depth = depthcur; parent = old_parent}, new_plist, t_block), new_env_without_params, fpcur, depthcur, new_offset_env_without_params
-                      | _ -> assert false (* should not end up here *)
+                      | _ -> (handle_error 42 locdi None) (* should not end up here *)
           in
             begin
               parent_cur := old_parent;
